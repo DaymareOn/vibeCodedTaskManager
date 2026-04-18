@@ -51,7 +51,7 @@ export interface Task {
 }
 
 export interface TaskFilter {
-  status?: TaskStatus;
+  /** Statuses to hide from the view; all statuses visible when empty / undefined. */
+  hiddenStatuses?: TaskStatus[];
   search?: string;
-  sortByScore?: boolean;
 }

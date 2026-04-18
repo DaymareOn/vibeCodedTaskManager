@@ -2,6 +2,13 @@ import type { TaskFilter, TaskStatus } from '../types/Task';
 import { DOM } from '../utils/dom';
 import { useTaskStore } from '../store/taskStore';
 
+const STATUS_CONFIG: Array<{ status: TaskStatus; label: string; cssClass: string }> = [
+  { status: 'todo',        label: '⬜ To Do',      cssClass: 'status-btn-todo' },
+  { status: 'in-progress', label: '🔄 In Progress', cssClass: 'status-btn-in-progress' },
+  { status: 'done',        label: '✅ Done',        cssClass: 'status-btn-done' },
+  { status: 'cancelled',   label: '❌ Cancelled',   cssClass: 'status-btn-cancelled' },
+];
+
 export const FilterBar = (): HTMLElement => {
   const bar = DOM.create('div', 'filter-bar');
 
@@ -9,43 +16,38 @@ export const FilterBar = (): HTMLElement => {
   searchInput.type = 'text';
   searchInput.placeholder = '🔍 Search tasks…';
 
-  const statusSelect = DOM.create('select', 'filter-select') as HTMLSelectElement;
-  statusSelect.innerHTML = `
-    <option value="">All Statuses</option>
-    <option value="todo">To Do</option>
-    <option value="in-progress">In Progress</option>
-    <option value="done">Done</option>
-  `;
-
-  const sortScoreLabel = DOM.create('label', 'filter-sort-label');
-  sortScoreLabel.innerHTML = `
-    <input type="checkbox" id="sort-by-score" class="filter-checkbox" />
-    ⚡ Sort by score
-  `;
-
-  const clearBtn = DOM.create('button', 'btn btn-secondary', 'Clear Filters');
+  // Status toggle buttons – one per status; active = visible, inactive = hidden
+  const statusButtonsRow = DOM.create('div', 'status-filter-buttons');
+  const hiddenStatuses = new Set<TaskStatus>();
 
   const applyFilters = (): void => {
-    const sortCheckbox = sortScoreLabel.querySelector('#sort-by-score') as HTMLInputElement;
     const filter: TaskFilter = {};
     if (searchInput.value) filter.search = searchInput.value;
-    if (statusSelect.value) filter.status = statusSelect.value as TaskStatus;
-    if (sortCheckbox?.checked) filter.sortByScore = true;
+    if (hiddenStatuses.size > 0) filter.hiddenStatuses = [...hiddenStatuses];
     useTaskStore.getState().setFilter(filter);
   };
 
-  searchInput.addEventListener('input', applyFilters);
-  statusSelect.addEventListener('change', applyFilters);
-  sortScoreLabel.addEventListener('change', applyFilters);
-
-  clearBtn.addEventListener('click', () => {
-    searchInput.value = '';
-    statusSelect.value = '';
-    const sortCheckbox = sortScoreLabel.querySelector('#sort-by-score') as HTMLInputElement;
-    if (sortCheckbox) sortCheckbox.checked = false;
-    useTaskStore.getState().setFilter({});
+  STATUS_CONFIG.forEach(({ status, label, cssClass }) => {
+    const btn = DOM.create('button', `status-btn ${cssClass} active`) as HTMLButtonElement;
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.title = `Toggle visibility of "${label}" tasks`;
+    btn.addEventListener('click', () => {
+      if (hiddenStatuses.has(status)) {
+        hiddenStatuses.delete(status);
+        btn.classList.add('active');
+      } else {
+        hiddenStatuses.add(status);
+        btn.classList.remove('active');
+      }
+      applyFilters();
+    });
+    DOM.append(statusButtonsRow, btn);
   });
 
-  DOM.append(bar, searchInput, statusSelect, sortScoreLabel, clearBtn);
+  searchInput.addEventListener('input', applyFilters);
+
+  DOM.append(bar, searchInput, statusButtonsRow);
   return bar;
 };
+

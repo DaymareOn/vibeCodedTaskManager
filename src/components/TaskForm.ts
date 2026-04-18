@@ -3,6 +3,221 @@ import { DOM } from '../utils/dom';
 
 type TaskFormData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
 
+/** ISO 4217 currencies available in the currency picker */
+const CURRENCIES: Array<{ code: string; name: string }> = [
+  { code: 'EUR', name: 'Euro' },
+  { code: 'USD', name: 'US Dollar' },
+  { code: 'GBP', name: 'British Pound' },
+  { code: 'JPY', name: 'Japanese Yen' },
+  { code: 'CHF', name: 'Swiss Franc' },
+  { code: 'CAD', name: 'Canadian Dollar' },
+  { code: 'AUD', name: 'Australian Dollar' },
+  { code: 'NZD', name: 'New Zealand Dollar' },
+  { code: 'CNY', name: 'Chinese Yuan' },
+  { code: 'HKD', name: 'Hong Kong Dollar' },
+  { code: 'SGD', name: 'Singapore Dollar' },
+  { code: 'SEK', name: 'Swedish Krona' },
+  { code: 'NOK', name: 'Norwegian Krone' },
+  { code: 'DKK', name: 'Danish Krone' },
+  { code: 'PLN', name: 'Polish Zloty' },
+  { code: 'CZK', name: 'Czech Koruna' },
+  { code: 'HUF', name: 'Hungarian Forint' },
+  { code: 'RON', name: 'Romanian Leu' },
+  { code: 'BGN', name: 'Bulgarian Lev' },
+  { code: 'ISK', name: 'Icelandic Krona' },
+  { code: 'MXN', name: 'Mexican Peso' },
+  { code: 'BRL', name: 'Brazilian Real' },
+  { code: 'ARS', name: 'Argentine Peso' },
+  { code: 'CLP', name: 'Chilean Peso' },
+  { code: 'COP', name: 'Colombian Peso' },
+  { code: 'PEN', name: 'Peruvian Sol' },
+  { code: 'INR', name: 'Indian Rupee' },
+  { code: 'KRW', name: 'South Korean Won' },
+  { code: 'TWD', name: 'Taiwan Dollar' },
+  { code: 'THB', name: 'Thai Baht' },
+  { code: 'MYR', name: 'Malaysian Ringgit' },
+  { code: 'IDR', name: 'Indonesian Rupiah' },
+  { code: 'PHP', name: 'Philippine Peso' },
+  { code: 'VND', name: 'Vietnamese Dong' },
+  { code: 'ZAR', name: 'South African Rand' },
+  { code: 'EGP', name: 'Egyptian Pound' },
+  { code: 'NGN', name: 'Nigerian Naira' },
+  { code: 'KES', name: 'Kenyan Shilling' },
+  { code: 'MAD', name: 'Moroccan Dirham' },
+  { code: 'SAR', name: 'Saudi Riyal' },
+  { code: 'AED', name: 'UAE Dirham' },
+  { code: 'ILS', name: 'Israeli Shekel' },
+  { code: 'TRY', name: 'Turkish Lira' },
+  { code: 'RUB', name: 'Russian Ruble' },
+];
+
+/** Create a currency <select> pre-filled with ISO 4217 codes */
+function createCurrencySelect(initial = 'EUR'): HTMLSelectElement {
+  const select = DOM.create('select', 'form-input form-currency-select') as HTMLSelectElement;
+  CURRENCIES.forEach(({ code, name }) => {
+    const opt = document.createElement('option');
+    opt.value = code;
+    opt.textContent = `${code} – ${name}`;
+    if (code === initial) opt.selected = true;
+    select.appendChild(opt);
+  });
+  return select;
+}
+
+/** Two-option toggle button group. Returns element + getValue/setValue helpers. */
+function createToggle(
+  options: Array<{ value: string; label: string }>,
+  initialValue: string,
+  onChange: (value: string) => void,
+): { element: HTMLElement; getValue: () => string; setValue: (v: string) => void } {
+  const group = DOM.create('div', 'toggle-group');
+  let current = initialValue;
+
+  options.forEach(({ value, label }) => {
+    const btn = DOM.create('button', `toggle-btn${value === initialValue ? ' active' : ''}`) as HTMLButtonElement;
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.dataset.value = value;
+    btn.addEventListener('click', () => {
+      if (current === value) return;
+      current = value;
+      group.querySelectorAll<HTMLElement>('.toggle-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.value === value);
+      });
+      onChange(value);
+    });
+    DOM.append(group, btn);
+  });
+
+  return {
+    element: group,
+    getValue: () => current,
+    setValue: (v: string) => {
+      current = v;
+      group.querySelectorAll<HTMLElement>('.toggle-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.value === v);
+      });
+    },
+  };
+}
+
+/** Parse an ISO 8601 duration string into its numeric components. */
+function parseDurationFields(iso: string): {
+  years: number; months: number; weeks: number; days: number;
+  hours: number; minutes: number; seconds: number;
+} {
+  const empty = { years: 0, months: 0, weeks: 0, days: 0, hours: 0, minutes: 0, seconds: 0 };
+  if (!iso) return empty;
+  const re =
+    /^P(?:(\d+(?:\.\d+)?)Y)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)W)?(?:(\d+(?:\.\d+)?)D)?(?:T(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?)?$/;
+  const m = iso.match(re);
+  if (!m) return empty;
+  const n = (i: number) => parseFloat(m[i] ?? '0') || 0;
+  return { years: n(1), months: n(2), weeks: n(3), days: n(4), hours: n(5), minutes: n(6), seconds: n(7) };
+}
+
+/** Compose an ISO 8601 duration string from numeric components. Returns '' when all are zero. */
+function composeDuration(
+  years: number, months: number, weeks: number, days: number,
+  hours: number, minutes: number, seconds: number,
+): string {
+  if (years === 0 && months === 0 && weeks === 0 && days === 0 &&
+      hours === 0 && minutes === 0 && seconds === 0) return '';
+  let iso = 'P';
+  if (years)   iso += `${years}Y`;
+  if (months)  iso += `${months}M`;
+  if (weeks)   iso += `${weeks}W`;
+  if (days)    iso += `${days}D`;
+  if (hours || minutes || seconds) {
+    iso += 'T';
+    if (hours)   iso += `${hours}H`;
+    if (minutes) iso += `${minutes}M`;
+    if (seconds) iso += `${seconds}S`;
+  }
+  return iso;
+}
+
+/**
+ * Ergonomic ISO 8601 duration builder.
+ * Shows labelled number inputs (Y M W D H min s) that auto-compose to an ISO string.
+ */
+function createDurationBuilder(initialIso = ''): {
+  element: HTMLElement;
+  getValue: () => string;
+  setValue: (iso: string) => void;
+} {
+  const container = DOM.create('div', 'duration-builder');
+  const fields = DOM.create('div', 'duration-fields');
+
+  const parsed = parseDurationFields(initialIso);
+
+  const units = [
+    { key: 'years',   label: 'Y',   init: parsed.years },
+    { key: 'months',  label: 'M',   init: parsed.months },
+    { key: 'weeks',   label: 'W',   init: parsed.weeks },
+    { key: 'days',    label: 'D',   init: parsed.days },
+    { key: 'hours',   label: 'H',   init: parsed.hours },
+    { key: 'minutes', label: 'min', init: parsed.minutes },
+    { key: 'seconds', label: 's',   init: parsed.seconds },
+  ];
+
+  const inputs: Record<string, HTMLInputElement> = {};
+
+  units.forEach(({ key, label, init }) => {
+    const cell = DOM.create('div', 'duration-field');
+    const input = DOM.create('input', 'duration-num') as HTMLInputElement;
+    input.type = 'number';
+    input.min = '0';
+    input.step = '1';
+    if (init) input.value = String(init);
+    input.placeholder = '0';
+    input.title = label;
+    const lbl = DOM.create('span', 'duration-unit', label);
+    DOM.append(cell, input, lbl);
+    DOM.append(fields, cell);
+    inputs[key] = input;
+  });
+
+  const preview = DOM.create('div', 'duration-preview');
+
+  const compose = (): string =>
+    composeDuration(
+      parseInt(inputs.years.value) || 0,
+      parseInt(inputs.months.value) || 0,
+      parseInt(inputs.weeks.value) || 0,
+      parseInt(inputs.days.value) || 0,
+      parseInt(inputs.hours.value) || 0,
+      parseInt(inputs.minutes.value) || 0,
+      parseInt(inputs.seconds.value) || 0,
+    );
+
+  const update = (): void => {
+    const iso = compose();
+    preview.textContent = iso ? iso : '—';
+  };
+
+  fields.querySelectorAll('input').forEach((inp) => inp.addEventListener('input', update));
+  update();
+
+  DOM.append(container, fields, preview);
+
+  return {
+    element: container,
+    getValue: compose,
+    setValue: (iso: string) => {
+      const p = parseDurationFields(iso);
+      inputs.years.value   = p.years   ? String(p.years)   : '';
+      inputs.months.value  = p.months  ? String(p.months)  : '';
+      inputs.weeks.value   = p.weeks   ? String(p.weeks)   : '';
+      inputs.days.value    = p.days    ? String(p.days)    : '';
+      inputs.hours.value   = p.hours   ? String(p.hours)   : '';
+      inputs.minutes.value = p.minutes ? String(p.minutes) : '';
+      inputs.seconds.value = p.seconds ? String(p.seconds) : '';
+      update();
+    },
+  };
+}
+
 /**
  * Build a task form element.
  * @param onSubmit  Called with the form data when the user submits.
@@ -42,14 +257,19 @@ export const TaskForm = (
   const scoreSection = DOM.create('div', 'form-score-section');
   const scoreSectionTitle = DOM.create('div', 'form-score-title', '⚡ Priority Score');
 
-  // Value type
+  // Value type toggle
   const valueTypeLabel = DOM.create('label', 'form-label', 'Value type');
-  const valueTypeSelect = DOM.create('select', 'form-input') as HTMLSelectElement;
-  valueTypeSelect.innerHTML = `
-    <option value="direct">Direct amount</option>
-    <option value="event">Event (unit cost × probability)</option>
-  `;
-  if (existingTask?.taskValue?.type === 'event') valueTypeSelect.value = 'event';
+  const initialValueType = existingTask?.taskValue?.type === 'event' ? 'event' : 'direct';
+  let valueType = initialValueType;
+
+  const valueTypeToggle = createToggle(
+    [
+      { value: 'direct', label: '💰 Direct amount' },
+      { value: 'event', label: '📊 Event (cost × probability)' },
+    ],
+    initialValueType,
+    (v) => { valueType = v; showValueFields(); },
+  );
 
   // Direct value fields
   const directSection = DOM.create('div', 'form-row');
@@ -58,17 +278,13 @@ export const TaskForm = (
   directAmount.min = '0';
   directAmount.step = '0.01';
   directAmount.placeholder = 'Amount (e.g. 1500)';
-  directAmount.required = true;
-  const directCurrency = DOM.create('input', 'form-input') as HTMLInputElement;
-  directCurrency.type = 'text';
-  directCurrency.placeholder = 'Currency (e.g. EUR)';
-  directCurrency.value = 'EUR';
-  directCurrency.maxLength = 3;
-  DOM.append(directSection, directAmount, directCurrency);
+  const directCurrencySelect = createCurrencySelect(
+    existingTask?.taskValue?.type === 'direct' ? existingTask.taskValue.amount.currency : 'EUR',
+  );
+  DOM.append(directSection, directAmount, directCurrencySelect);
 
   if (existingTask?.taskValue?.type === 'direct') {
     directAmount.value = String(existingTask.taskValue.amount.amount);
-    directCurrency.value = existingTask.taskValue.amount.currency;
   }
 
   // Event value fields
@@ -78,81 +294,84 @@ export const TaskForm = (
   unitCostAmount.min = '0';
   unitCostAmount.step = '0.01';
   unitCostAmount.placeholder = 'Unit cost (e.g. 15000)';
-  const unitCostCurrency = DOM.create('input', 'form-input') as HTMLInputElement;
-  unitCostCurrency.type = 'text';
-  unitCostCurrency.placeholder = 'Currency (e.g. EUR)';
-  unitCostCurrency.value = 'EUR';
-  unitCostCurrency.maxLength = 3;
+  const unitCostCurrencySelect = createCurrencySelect(
+    existingTask?.taskValue?.type === 'event' ? existingTask.taskValue.unitCost.currency : 'EUR',
+  );
   const probabilityInput = DOM.create('input', 'form-input') as HTMLInputElement;
   probabilityInput.type = 'number';
   probabilityInput.min = '0';
   probabilityInput.max = '1';
   probabilityInput.step = '0.01';
-  probabilityInput.placeholder = 'Probability (0 to 1, e.g. 0.05)';
-  const eventPeriodInput = DOM.create('input', 'form-input') as HTMLInputElement;
-  eventPeriodInput.type = 'text';
-  eventPeriodInput.placeholder = 'Period ISO 8601 (e.g. P1Y, P3M, P30D)';
-  DOM.append(eventSection, unitCostAmount, unitCostCurrency, probabilityInput, eventPeriodInput);
+  probabilityInput.placeholder = 'Probability (0–1, e.g. 0.05)';
+
+  // Period duration builder
+  const eventPeriodLabel = DOM.create('label', 'form-label', 'Period');
+  const periodBuilder = createDurationBuilder(
+    existingTask?.taskValue?.type === 'event' ? existingTask.taskValue.period.iso : '',
+  );
+
+  DOM.append(eventSection, unitCostAmount, unitCostCurrencySelect, probabilityInput);
 
   if (existingTask?.taskValue?.type === 'event') {
     unitCostAmount.value = String(existingTask.taskValue.unitCost.amount);
-    unitCostCurrency.value = existingTask.taskValue.unitCost.currency;
     probabilityInput.value = String(existingTask.taskValue.probability);
-    eventPeriodInput.value = existingTask.taskValue.period.iso;
   }
 
   const showValueFields = (): void => {
-    directSection.classList.toggle('hidden', valueTypeSelect.value !== 'direct');
-    eventSection.classList.toggle('hidden', valueTypeSelect.value !== 'event');
-    directAmount.required = valueTypeSelect.value === 'direct';
-    unitCostAmount.required = valueTypeSelect.value === 'event';
-    probabilityInput.required = valueTypeSelect.value === 'event';
-    eventPeriodInput.required = valueTypeSelect.value === 'event';
+    directSection.classList.toggle('hidden', valueType !== 'direct');
+    eventSection.classList.toggle('hidden', valueType !== 'event');
+    eventPeriodLabel.classList.toggle('hidden', valueType !== 'event');
+    periodBuilder.element.classList.toggle('hidden', valueType !== 'event');
+    directAmount.required = valueType === 'direct';
+    unitCostAmount.required = valueType === 'event';
+    probabilityInput.required = valueType === 'event';
   };
-  valueTypeSelect.addEventListener('change', showValueFields);
   showValueFields();
 
-  // Target delivery
+  // Target delivery toggle
   const deliveryLabel = DOM.create('label', 'form-label', 'Target delivery');
-  const deliveryTypeSelect = DOM.create('select', 'form-input') as HTMLSelectElement;
-  deliveryTypeSelect.innerHTML = `
-    <option value="date">Fixed date</option>
-    <option value="duration">Relative duration from now</option>
-  `;
+  const initialDeliveryType =
+    existingTask && typeof existingTask.targetDelivery !== 'string' ? 'duration' : 'date';
+  let deliveryType = initialDeliveryType;
+
+  const deliveryToggle = createToggle(
+    [
+      { value: 'date',     label: '📅 Fixed date' },
+      { value: 'duration', label: '⏱ Duration from now' },
+    ],
+    initialDeliveryType,
+    (v) => { deliveryType = v; showDeliveryFields(); },
+  );
+
   const deliveryDateInput = DOM.create('input', 'form-input') as HTMLInputElement;
   deliveryDateInput.type = 'date';
-  deliveryDateInput.required = true;
-  const deliveryDurationInput = DOM.create('input', 'form-input hidden') as HTMLInputElement;
-  deliveryDurationInput.type = 'text';
-  deliveryDurationInput.placeholder = 'ISO 8601 duration (e.g. P3M, P2W, P10D, PT6H)';
+  deliveryDateInput.required = initialDeliveryType === 'date';
+
+  const deliveryDurationBuilder = createDurationBuilder(
+    existingTask && typeof existingTask.targetDelivery !== 'string'
+      ? existingTask.targetDelivery.iso
+      : '',
+  );
 
   if (existingTask?.targetDelivery) {
     if (typeof existingTask.targetDelivery === 'string') {
-      deliveryTypeSelect.value = 'date';
       deliveryDateInput.value = existingTask.targetDelivery;
-    } else {
-      deliveryTypeSelect.value = 'duration';
-      deliveryDurationInput.value = existingTask.targetDelivery.iso;
     }
   }
 
   const showDeliveryFields = (): void => {
-    const isDate = deliveryTypeSelect.value === 'date';
+    const isDate = deliveryType === 'date';
     deliveryDateInput.classList.toggle('hidden', !isDate);
-    deliveryDurationInput.classList.toggle('hidden', isDate);
+    deliveryDurationBuilder.element.classList.toggle('hidden', isDate);
     deliveryDateInput.required = isDate;
-    deliveryDurationInput.required = !isDate;
   };
-  deliveryTypeSelect.addEventListener('change', showDeliveryFields);
   showDeliveryFields();
 
-  // Remaining estimate
+  // Remaining estimate duration builder
   const estimateLabel = DOM.create('label', 'form-label', 'Remaining estimate');
-  const estimateInput = DOM.create('input', 'form-input') as HTMLInputElement;
-  estimateInput.type = 'text';
-  estimateInput.placeholder = 'ISO 8601 duration (e.g. P5D, PT4H, P1W)';
-  estimateInput.required = true;
-  if (existingTask?.remainingEstimate) estimateInput.value = existingTask.remainingEstimate.iso;
+  const estimateBuilder = createDurationBuilder(
+    existingTask?.remainingEstimate ? existingTask.remainingEstimate.iso : '',
+  );
 
   // Status selector (only shown when editing)
   const statusSelect = DOM.create('select', `form-input${existingTask ? '' : ' hidden'}`) as HTMLSelectElement;
@@ -178,11 +397,12 @@ export const TaskForm = (
   DOM.append(
     scoreSection,
     scoreSectionTitle,
-    valueTypeLabel, valueTypeSelect,
+    valueTypeLabel, valueTypeToggle.element,
     directSection,
     eventSection,
-    deliveryLabel, deliveryTypeSelect, deliveryDateInput, deliveryDurationInput,
-    estimateLabel, estimateInput,
+    eventPeriodLabel, periodBuilder.element,
+    deliveryLabel, deliveryToggle.element, deliveryDateInput, deliveryDurationBuilder.element,
+    estimateLabel, estimateBuilder.element,
   );
 
   const submitBtn = DOM.create('button', 'btn-primary', submitLabel);
@@ -193,32 +413,63 @@ export const TaskForm = (
 
     // Build taskValue
     let taskValue: TaskValue;
-    if (valueTypeSelect.value === 'direct') {
+    if (valueType === 'direct') {
+      if (!directAmount.value) {
+        directAmount.reportValidity();
+        return;
+      }
       taskValue = {
         type: 'direct',
-        amount: { amount: parseFloat(directAmount.value), currency: directCurrency.value.toUpperCase() || 'EUR' },
+        amount: { amount: parseFloat(directAmount.value), currency: directCurrencySelect.value },
       };
     } else {
+      const periodIso = periodBuilder.getValue();
+      if (!unitCostAmount.value || !probabilityInput.value || !periodIso) {
+        if (!unitCostAmount.value) unitCostAmount.setCustomValidity('Please enter a unit cost.');
+        if (!probabilityInput.value) probabilityInput.setCustomValidity('Please enter a probability.');
+        if (!periodIso) {
+          // Highlight the period builder container
+          periodBuilder.element.classList.add('duration-error');
+          setTimeout(() => periodBuilder.element.classList.remove('duration-error'), 2000);
+        }
+        form.reportValidity();
+        unitCostAmount.setCustomValidity('');
+        probabilityInput.setCustomValidity('');
+        return;
+      }
       taskValue = {
         type: 'event',
-        unitCost: {
-          amount: parseFloat(unitCostAmount.value),
-          currency: unitCostCurrency.value.toUpperCase() || 'EUR',
-        },
+        unitCost: { amount: parseFloat(unitCostAmount.value), currency: unitCostCurrencySelect.value },
         probability: parseFloat(probabilityInput.value),
-        period: { iso: eventPeriodInput.value },
+        period: { iso: periodIso },
       };
     }
 
     // Build targetDelivery
     let targetDelivery: string | Duration;
-    if (deliveryTypeSelect.value === 'date') {
+    if (deliveryType === 'date') {
+      if (!deliveryDateInput.value) {
+        deliveryDateInput.reportValidity();
+        return;
+      }
       targetDelivery = deliveryDateInput.value;
     } else {
-      targetDelivery = { iso: deliveryDurationInput.value };
+      const durIso = deliveryDurationBuilder.getValue();
+      if (!durIso) {
+        deliveryDurationBuilder.element.classList.add('duration-error');
+        setTimeout(() => deliveryDurationBuilder.element.classList.remove('duration-error'), 2000);
+        return;
+      }
+      targetDelivery = { iso: durIso };
     }
 
-    const remainingEstimate: Duration = { iso: estimateInput.value };
+    const estimateIso = estimateBuilder.getValue();
+    if (!estimateIso) {
+      estimateBuilder.element.classList.add('duration-error');
+      setTimeout(() => estimateBuilder.element.classList.remove('duration-error'), 2000);
+      return;
+    }
+    const remainingEstimate: Duration = { iso: estimateIso };
 
     const taskData: TaskFormData = {
       title: titleInput.value,
@@ -238,10 +489,13 @@ export const TaskForm = (
     if (!existingTask) {
       form.reset();
       // Restore defaults after reset
-      directCurrency.value = 'EUR';
-      unitCostCurrency.value = 'EUR';
-      valueTypeSelect.value = 'direct';
-      deliveryTypeSelect.value = 'date';
+      valueType = 'direct';
+      deliveryType = 'date';
+      valueTypeToggle.setValue('direct');
+      deliveryToggle.setValue('date');
+      estimateBuilder.setValue('');
+      periodBuilder.setValue('');
+      deliveryDurationBuilder.setValue('');
       showValueFields();
       showDeliveryFields();
     }

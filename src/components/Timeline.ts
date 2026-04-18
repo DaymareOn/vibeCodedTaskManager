@@ -5,7 +5,7 @@ import {
   computePriorityScore,
   parseDuration,
   formatMoney,
-  computeTaskValue,
+  computeTaskValueConverted,
 } from '../utils/priority';
 import { TaskForm } from './TaskForm';
 
@@ -90,14 +90,13 @@ export const Timeline = (): HTMLElement => {
   let hoverTaskId: string | null = null;
   let hoverLeaveTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // -------- Sorted root tasks --------
-  function getSortedRootTasks(now: number): Task[] {
+  // -------- Root tasks for display --------
+  function getSortedRootTasks(): Task[] {
     const store = useTaskStore.getState();
-    const { filter, showCancelled } = store;
-    let tasks = store.tasks.filter((t) => {
+    const { filter } = store;
+    const tasks = store.tasks.filter((t) => {
       if (t.parentId) return false;
-      if (!showCancelled && t.status === 'cancelled') return false;
-      if (filter.status && t.status !== filter.status) return false;
+      if (filter.hiddenStatuses?.includes(t.status)) return false;
       if (
         filter.search &&
         !t.title.toLowerCase().includes(filter.search.toLowerCase()) &&
@@ -107,10 +106,8 @@ export const Timeline = (): HTMLElement => {
       }
       return true;
     });
-    tasks = [...tasks].sort((a, b) => {
-      return computePriorityScore(b, 1.0, now) - computePriorityScore(a, 1.0, now);
-    });
-    return tasks;
+    // Return tasks in creation order (most recent last)
+    return [...tasks].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }
 
   // -------- Render ruler --------
@@ -199,7 +196,7 @@ export const Timeline = (): HTMLElement => {
     const pxPerMs = getPxPerMs(horizontalZoom);
     const bodyHeight = body.clientHeight || 400;
 
-    const tasks = getSortedRootTasks(now);
+    const tasks = getSortedRootTasks();
     const totalHeight = tasks.length * (effectiveHeight + TASK_GAP);
 
     // Vertical offset logic: center if tasks fit, else allow scrolling
@@ -281,7 +278,7 @@ export const Timeline = (): HTMLElement => {
     DOM.clear(hoverLayer);
 
     const store = useTaskStore.getState();
-    const { horizontalZoom, timelineOriginMs, cancelledOpacity, showCancelled } = store;
+    const { horizontalZoom, timelineOriginMs, cancelledOpacity, filter, mainCurrency, exchangeRates } = store;
     const now = Date.now();
     const pxPerMs = getPxPerMs(horizontalZoom);
     const rectTop = parseFloat(rectEl.style.top);
@@ -290,12 +287,14 @@ export const Timeline = (): HTMLElement => {
     // ---- Tooltip ----
     const tooltip = DOM.create('div', 'task-tooltip');
 
-    const score = computePriorityScore(task, 1.0, now);
-    const value = computeTaskValue(task.taskValue);
-    const currency =
+    const score = computeTaskValueConverted(task.taskValue, mainCurrency, exchangeRates);
+    const taskCurrency =
       task.taskValue.type === 'direct'
         ? task.taskValue.amount.currency
         : task.taskValue.unitCost.currency;
+    const displayCurrency = mainCurrency || taskCurrency;
+    // Re-compute priority score using converted value
+    const priorityScore = computePriorityScore(task, 1.0, now);
     const startStr = new Date(getTaskStartMs(task)).toLocaleDateString();
     const endStr = new Date(getTaskEndMs(task, now)).toLocaleDateString();
     const statusLabels: Record<string, string> = {
@@ -310,8 +309,8 @@ export const Timeline = (): HTMLElement => {
       ${task.description ? `<div class="tooltip-desc">${escapeHtml(task.description)}</div>` : ''}
       <div class="tooltip-meta">
         <span class="tooltip-badge tooltip-badge-${task.status}">${statusLabels[task.status] || task.status}</span>
-        <span class="tooltip-score">⚡ ${formatMoney(score, currency)}</span>
-        <span class="tooltip-value" title="Task value">💰 ${formatMoney(value, currency)}</span>
+        <span class="tooltip-score">⚡ ${formatMoney(priorityScore, taskCurrency)}</span>
+        <span class="tooltip-value" title="Value in ${displayCurrency}">💰 ${formatMoney(score, displayCurrency)}</span>
       </div>
       <div class="tooltip-dates">📅 ${startStr} → ${endStr}</div>
       ${task.tags.length ? `<div class="tooltip-tags">${task.tags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -330,8 +329,7 @@ export const Timeline = (): HTMLElement => {
     DOM.append(hoverLayer, tooltip);
 
     // ---- Subtasks below parent ----
-    let subTasks = store.getSubTasks(task.id);
-    if (!showCancelled) subTasks = subTasks.filter((s) => s.status !== 'cancelled');
+    const subTasks = store.getSubTasks(task.id).filter((s) => !filter.hiddenStatuses?.includes(s.status));
 
     const subHeight = effectiveHeight * 0.75;
     const subY = rectTop + effectiveHeight + TASK_GAP;
@@ -453,7 +451,7 @@ export const Timeline = (): HTMLElement => {
         store.setVerticalZoom(newZoom);
       } else {
         // Vertical scroll
-        const tasks = getSortedRootTasks(Date.now());
+        const tasks = getSortedRootTasks();
         const effectiveHeight = store.taskHeight * (store.verticalZoom / 100);
         const totalHeight = tasks.length * (effectiveHeight + TASK_GAP);
         const bodyH = body.clientHeight || 400;
