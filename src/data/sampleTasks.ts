@@ -30,6 +30,9 @@ export const sampleTasks: Task[] = [
     tags: ['finance', 'admin', 'annual'],
     createdAt: offsetDate(SEED_DATE, 9, 9, 0), // 2026-01-10T09:00:00.000Z
     updatedAt: offsetDate(SEED_DATE, 9, 9, 0),
+    taskValue: { type: 'direct', amount: { amount: 2000, currency: 'EUR' } },
+    targetDelivery: offsetDateOnly(SEED_DATE, 90),
+    remainingEstimate: { iso: 'P2D' },
   },
   {
     id: '00000000-0000-0000-0000-000000000002',
@@ -66,6 +69,14 @@ export const sampleTasks: Task[] = [
     tags: ['finance', 'home', 'insurance'],
     createdAt: offsetDate(SEED_DATE, 73, 10, 0), // 2026-03-15T10:00:00.000Z
     updatedAt: offsetDate(SEED_DATE, 73, 10, 0),
+    taskValue: {
+      type: 'event',
+      unitCost: { amount: 15000, currency: 'EUR' },
+      probability: 0.05,
+      period: { iso: 'P1Y' },
+    },
+    targetDelivery: offsetDateOnly(SEED_DATE, 117),
+    remainingEstimate: { iso: 'PT1H' },
   },
   {
     id: '00000000-0000-0000-0000-000000000005',
@@ -90,6 +101,9 @@ export const sampleTasks: Task[] = [
     tags: ['auto', 'maintenance'],
     createdAt: offsetDate(SEED_DATE, 86, 8, 45), // 2026-03-28T08:45:00.000Z
     updatedAt: offsetDate(SEED_DATE, 99, 16, 0), // 2026-04-10T16:00:00.000Z
+    taskValue: { type: 'direct', amount: { amount: 500, currency: 'EUR' } },
+    targetDelivery: offsetDateOnly(SEED_DATE, 114),
+    remainingEstimate: { iso: 'P1D' },
   },
   {
     id: '00000000-0000-0000-0000-000000000007',
@@ -194,5 +208,8 @@ export const sampleTasks: Task[] = [
     tags: ['legal', 'admin', 'finance'],
     createdAt: offsetDate(SEED_DATE, 83, 10, 30), // 2026-03-25T10:30:00.000Z
     updatedAt: offsetDate(SEED_DATE, 83, 10, 30),
+    taskValue: { type: 'direct', amount: { amount: 50000, currency: 'EUR' } },
+    targetDelivery: offsetDateOnly(SEED_DATE, 181),
+    remainingEstimate: { iso: 'P3D' },
   },
 ];

@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import type { Task, TaskFilter } from '../types/Task';
 import { StorageManager } from '../utils/storage';
+import { computePriorityScore } from '../utils/priority';
+import { useGroupStore } from './groupStore';
 
-interface TaskStore {
+export interface TaskStore {
   tasks: Task[];
   filter: TaskFilter;
   
@@ -67,9 +69,12 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   getFilteredTasks: () => {
     const { tasks, filter } = get();
-    return tasks.filter((task) => {
+    const now = Date.now();
+
+    let result = tasks.filter((task) => {
       if (filter.status && task.status !== filter.status) return false;
       if (filter.priority && task.priority !== filter.priority) return false;
+      if (filter.groupId && task.groupId !== filter.groupId) return false;
       if (
         filter.search &&
         !task.title.toLowerCase().includes(filter.search.toLowerCase()) &&
@@ -79,5 +84,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }
       return true;
     });
+
+    if (filter.sortByScore) {
+      const groups = useGroupStore.getState().groups;
+      result = [...result].sort((a, b) => {
+        const kA = groups.find((g) => g.id === a.groupId)?.priorityCoefficient ?? 1.0;
+        const kB = groups.find((g) => g.id === b.groupId)?.priorityCoefficient ?? 1.0;
+        const scoreA = computePriorityScore(a, kA, now) ?? -Infinity;
+        const scoreB = computePriorityScore(b, kB, now) ?? -Infinity;
+        return scoreB - scoreA;
+      });
+    }
+
+    return result;
   },
 }));

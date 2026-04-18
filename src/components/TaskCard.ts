@@ -1,6 +1,8 @@
 import type { Task } from '../types/Task';
 import { DOM } from '../utils/dom';
 import { useTaskStore } from '../store/taskStore';
+import { useGroupStore } from '../store/groupStore';
+import { computePriorityScore, computeTaskValue, formatMoney } from '../utils/priority';
 
 const STATUS_LABELS: Record<Task['status'], string> = {
   todo: 'To Do',
@@ -46,6 +48,28 @@ export const TaskCard = (task: Task, onDelete: (id: string) => void): HTMLElemen
   if (task.dueDate) {
     const due = DOM.create('span', 'task-due', `Due: ${task.dueDate}`);
     DOM.append(meta, due);
+  }
+
+  // Priority score badge
+  if (task.taskValue && task.targetDelivery && task.remainingEstimate) {
+    const groups = useGroupStore.getState().groups;
+    const group = groups.find((g) => g.id === task.groupId);
+    const k = group?.priorityCoefficient ?? 1.0;
+    const score = computePriorityScore(task, k);
+    if (score !== null) {
+      const currency =
+        task.taskValue.type === 'direct'
+          ? task.taskValue.amount.currency
+          : task.taskValue.unitCost.currency;
+      const value = computeTaskValue(task.taskValue);
+      const scoreEl = DOM.create('span', 'badge badge-score', `⚡ ${formatMoney(score, currency)}`);
+      scoreEl.title =
+        `Priority score: ${formatMoney(score, currency)}` +
+        ` (value: ${formatMoney(value, currency)}` +
+        (group ? `, k=${k}` : '') +
+        ')';
+      DOM.append(meta, scoreEl);
+    }
   }
 
   if (task.tags && task.tags.length > 0) {
