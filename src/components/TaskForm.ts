@@ -2,7 +2,7 @@ import type { Task } from '../types/Task';
 import { DOM } from '../utils/dom';
 
 export const TaskForm = (onSubmit: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => void): HTMLElement => {
-  const form = DOM.create('form', 'task-form');
+  const form = DOM.create('form', 'task-form') as HTMLFormElement;
 
   const titleInput = DOM.create('input', 'form-input') as HTMLInputElement;
   titleInput.type = 'text';
