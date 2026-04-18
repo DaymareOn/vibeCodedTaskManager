@@ -44,11 +44,12 @@ export const GroupPanel = (): HTMLElement => {
       const list = DOM.create('ul', 'group-list');
       groups.forEach((group) => {
         const item = DOM.create('li', 'group-item');
-        const info = DOM.create(
-          'span',
-          'group-info',
-          `<strong>${group.name}</strong> <span class="group-k-badge">k = ${group.priorityCoefficient}</span>`,
-        );
+        const info = DOM.create('span', 'group-info');
+        const nameEl = DOM.create('strong', 'group-name');
+        nameEl.textContent = group.name;
+        const kEl = DOM.create('span', 'group-k-badge');
+        kEl.textContent = `k = ${group.priorityCoefficient}`;
+        DOM.append(info, nameEl, kEl);
         const delBtn = DOM.create('button', 'btn btn-danger btn-sm', '×');
         (delBtn as HTMLButtonElement).type = 'button';
         delBtn.title = 'Delete group';

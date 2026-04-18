@@ -102,7 +102,7 @@ export const TaskForm = (onSubmit: (task: Omit<Task, 'id' | 'createdAt' | 'updat
   probabilityInput.placeholder = 'Probability (0 to 1, e.g. 0.05)';
   const eventPeriodInput = DOM.create('input', 'form-input') as HTMLInputElement;
   eventPeriodInput.type = 'text';
-  eventPeriodInput.placeholder = 'Period (ISO 8601, e.g. P1Y, P3M, P30D)';
+  eventPeriodInput.placeholder = 'Period ISO 8601 (e.g. P1Y, P3M, P30D) — required';
   DOM.append(eventSection, unitCostAmount, unitCostCurrency, probabilityInput, eventPeriodInput);
 
   valueTypeSelect.addEventListener('change', () => {
@@ -162,7 +162,8 @@ export const TaskForm = (onSubmit: (task: Omit<Task, 'id' | 'createdAt' | 'updat
     } else if (
       valueTypeSelect.value === 'event' &&
       unitCostAmount.value &&
-      probabilityInput.value
+      probabilityInput.value &&
+      eventPeriodInput.value
     ) {
       taskValue = {
         type: 'event',
@@ -171,7 +172,7 @@ export const TaskForm = (onSubmit: (task: Omit<Task, 'id' | 'createdAt' | 'updat
           currency: unitCostCurrency.value.toUpperCase() || 'EUR',
         },
         probability: parseFloat(probabilityInput.value),
-        period: { iso: eventPeriodInput.value || 'P1Y' },
+        period: { iso: eventPeriodInput.value },
       };
     }
 

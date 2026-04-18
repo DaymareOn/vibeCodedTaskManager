@@ -1,6 +1,6 @@
 import type { Duration, Task, TaskValue } from '../types/Task';
 
-/** Millisecond constants (months and years are calendar approximations). */
+/** Millisecond constants (months and years are calendar approximations: 1 month = 30.4375 days, 1 year = 365.25 days). */
 const MS = {
   second: 1_000,
   minute: 60_000,
