@@ -54,8 +54,10 @@ test.describe('Sample tasks in the Timeline', () => {
   });
 
   test('hovering "File income tax return" reveals "Declare child carer salary slips" sub-task', async ({ page }) => {
-    const parentTitle = page.locator('.task-rect .task-title', { hasText: 'File income tax return' });
-    await parentTitle.first().hover();
+    const parentRect = page.locator('.task-rect', {
+      has: page.locator('.task-title', { hasText: 'File income tax return' }),
+    });
+    await parentRect.first().hover();
 
     const subTask = page.locator('.timeline-hover-layer .task-title', {
       hasText: 'Declare child carer salary slips',
@@ -64,8 +66,10 @@ test.describe('Sample tasks in the Timeline', () => {
   });
 
   test('hovering "Renew home insurance policy" reveals its sub-task', async ({ page }) => {
-    const parentTitle = page.locator('.task-rect .task-title', { hasText: 'Renew home insurance policy' });
-    await parentTitle.first().hover();
+    const parentRect = page.locator('.task-rect', {
+      has: page.locator('.task-title', { hasText: 'Renew home insurance policy' }),
+    });
+    await parentRect.first().hover();
 
     const subTask = page.locator('.timeline-hover-layer .task-title', {
       hasText: 'Organise home contents inventory',
@@ -74,8 +78,10 @@ test.describe('Sample tasks in the Timeline', () => {
   });
 
   test('hovering "Plan summer family holiday" reveals both sub-tasks', async ({ page }) => {
-    const parentTitle = page.locator('.task-rect .task-title', { hasText: 'Plan summer family holiday' });
-    await parentTitle.first().hover();
+    const parentRect = page.locator('.task-rect', {
+      has: page.locator('.task-title', { hasText: 'Plan summer family holiday' }),
+    });
+    await parentRect.first().hover();
 
     const subTask1 = page.locator('.timeline-hover-layer .task-title', {
       hasText: 'Check passport expiry dates for all family members',
@@ -136,8 +142,10 @@ test.describe('Import / Export round-trip', () => {
     ).toBeVisible({ timeout: 10_000 });
 
     // After import the hover overlay must show sub-tasks
-    const parentTitle = page.locator('.task-rect .task-title', { hasText: 'Plan summer family holiday' });
-    await parentTitle.first().hover();
+    const parentRect = page.locator('.task-rect', {
+      has: page.locator('.task-title', { hasText: 'Plan summer family holiday' }),
+    });
+    await parentRect.first().hover();
 
     await expect(
       page.locator('.timeline-hover-layer .task-title', {

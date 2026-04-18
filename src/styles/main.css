@@ -461,10 +461,6 @@ body {
   z-index: 20;
 }
 
-.timeline-hover-layer .task-rect {
-  pointer-events: auto;
-}
-
 /* ============================================================
    Task Rectangles
    ============================================================ */
@@ -536,7 +532,7 @@ body {
   padding: 10px 12px;
   box-shadow: var(--shadow-lg);
   z-index: 30;
-  pointer-events: auto;
+  pointer-events: none;
   min-width: 200px;
   max-width: 300px;
   font-size: 0.82rem;

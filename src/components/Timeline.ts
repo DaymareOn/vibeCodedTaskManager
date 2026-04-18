@@ -285,16 +285,6 @@ export const Timeline = (): HTMLElement => {
 
     // ---- Tooltip ----
     const tooltip = DOM.create('div', 'task-tooltip');
-    tooltip.addEventListener('mouseenter', () => {
-      if (hoverLeaveTimer !== null) {
-        clearTimeout(hoverLeaveTimer);
-        hoverLeaveTimer = null;
-      }
-    });
-    tooltip.addEventListener('mouseleave', () => {
-      hoverTaskId = null;
-      DOM.clear(hoverLayer);
-    });
 
     const score = computePriorityScore(task, 1.0, now);
     const value = computeTaskValue(task.taskValue);
