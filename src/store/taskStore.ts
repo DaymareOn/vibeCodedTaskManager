@@ -3,10 +3,24 @@ import type { Task, TaskFilter } from '../types/Task';
 import { StorageManager } from '../utils/storage';
 import { computePriorityScore } from '../utils/priority';
 
+const MS_PER_DAY = 86_400_000;
+
+export type Theme = 'dark-pro' | 'light-pro' | 'pastel';
+
 export interface TaskStore {
   tasks: Task[];
   filter: TaskFilter;
-  
+
+  // --- Timeline / UI settings ---
+  taskHeight: number;
+  cancelledOpacity: number;
+  showCancelled: boolean;
+  horizontalZoom: number;
+  verticalZoom: number;
+  theme: Theme;
+  timelineOriginMs: number;
+  verticalOffset: number;
+
   // Actions
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
@@ -15,7 +29,17 @@ export interface TaskStore {
   loadTasks: () => void;
   importTasks: (tasks: Task[]) => void;
   exportTasks: () => string;
-  
+
+  // UI actions
+  setTaskHeight: (h: number) => void;
+  setCancelledOpacity: (o: number) => void;
+  setShowCancelled: (v: boolean) => void;
+  setHorizontalZoom: (z: number) => void;
+  setVerticalZoom: (z: number) => void;
+  setTheme: (t: Theme) => void;
+  setTimelineOriginMs: (ms: number) => void;
+  setVerticalOffset: (px: number) => void;
+
   // Getters
   getFilteredTasks: () => Task[];
   getSubTasks: (parentId: string) => Task[];
@@ -25,6 +49,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: [],
   filter: {},
 
+  // Timeline / UI defaults
+  taskHeight: 48,
+  cancelledOpacity: 0.5,
+  showCancelled: true,
+  horizontalZoom: 100,
+  verticalZoom: 100,
+  theme: 'dark-pro',
+  timelineOriginMs: Date.now() - 90 * MS_PER_DAY,
+  verticalOffset: 0,
+
   addTask: (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newTask: Task = {
       ...taskData,
@@ -32,7 +66,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    
+
     set((state) => {
       const updated = [...state.tasks, newTask];
       StorageManager.saveTasks(updated);
@@ -42,10 +76,22 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   updateTask: (id: string, updates: Partial<Task>) => {
     set((state) => {
+      const existing = state.tasks.find((t) => t.id === id);
+      const completedAt =
+        existing &&
+        (updates.status === 'done' || updates.status === 'cancelled') &&
+        existing.status !== updates.status
+          ? new Date().toISOString()
+          : undefined;
       const updated = state.tasks.map((task) =>
         task.id === id
-          ? { ...task, ...updates, updatedAt: new Date().toISOString() }
-          : task
+          ? {
+              ...task,
+              ...updates,
+              ...(completedAt ? { completedAt } : {}),
+              updatedAt: new Date().toISOString(),
+            }
+          : task,
       );
       StorageManager.saveTasks(updated);
       return { tasks: updated };
@@ -84,6 +130,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   exportTasks: () => {
     return StorageManager.exportTasks(get().tasks);
   },
+
+  // UI actions
+  setTaskHeight: (h) => set({ taskHeight: h }),
+  setCancelledOpacity: (o) => set({ cancelledOpacity: o }),
+  setShowCancelled: (v) => set({ showCancelled: v }),
+  setHorizontalZoom: (z) => set({ horizontalZoom: z }),
+  setVerticalZoom: (z) => set({ verticalZoom: z }),
+  setTheme: (t) => set({ theme: t }),
+  setTimelineOriginMs: (ms) => set({ timelineOriginMs: ms }),
+  setVerticalOffset: (px) => set({ verticalOffset: px }),
 
   getFilteredTasks: () => {
     const { tasks, filter } = get();
