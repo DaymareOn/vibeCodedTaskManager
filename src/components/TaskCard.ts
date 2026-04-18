@@ -89,28 +89,30 @@ export const TaskCard = (task: Task, depth = 0): HTMLElement => {
 
   const editBtn = DOM.create('button', 'btn btn-secondary', '✏ Edit');
   editBtn.addEventListener('click', () => {
+    let closeEdit: () => void;
     const editForm = TaskForm(
       (updated) => {
         useTaskStore.getState().updateTask(task.id, updated);
-        close();
+        closeEdit();
       },
       task,
       'Save Changes',
     );
-    const close = showModal(editForm);
+    closeEdit = showModal(editForm);
   });
 
   const addSubBtn = DOM.create('button', 'btn btn-secondary', '+ Sub-task');
   addSubBtn.addEventListener('click', () => {
+    let closeSub: () => void;
     const subForm = TaskForm(
       (subTaskData) => {
         useTaskStore.getState().addTask({ ...subTaskData, parentId: task.id });
-        close();
+        closeSub();
       },
       undefined,
       'Add Sub-task',
     );
-    const close = showModal(subForm);
+    closeSub = showModal(subForm);
   });
 
   const deleteBtn = DOM.create('button', 'btn btn-danger', 'Delete');
