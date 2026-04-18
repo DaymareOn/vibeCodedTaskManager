@@ -155,27 +155,31 @@ echo  [LOG] STEP 4 complete. node is available in PATH.
 echo.
 echo  [STEP] STEP 5 - Checking/installing npm dependencies...
 echo  [LOG] Checking for node_modules directory in: %CD%
-if not exist "node_modules" (
-    echo  [DEBUG] node_modules NOT found. Running npm install...
-    echo  [INFO] Installing project dependencies (first run only)...
-    echo         This may take 1-2 minutes...
+if exist "node_modules" goto :DEPS_ALREADY_INSTALLED
+
+echo  [DEBUG] node_modules NOT found. Running npm install...
+echo  [INFO] Installing project dependencies (first run only)...
+echo         This may take 1-2 minutes...
+echo.
+echo  [LOG] Running: npm install
+call npm install
+echo  [DEBUG] ERRORLEVEL after npm install: %ERRORLEVEL%
+if %ERRORLEVEL% NEQ 0 (
     echo.
-    echo  [LOG] Running: npm install
-    call npm install
-    echo  [DEBUG] ERRORLEVEL after npm install: %ERRORLEVEL%
-    if %ERRORLEVEL% NEQ 0 (
-        echo.
-        echo  [ERROR] npm install failed. Check your internet connection and try again.
-        echo.
-        pause
-        exit /b 1
-    )
-    echo  [OK] Dependencies installed.
-    echo  [LOG] npm install completed successfully.
-) else (
-    echo  [DEBUG] node_modules directory found. Skipping npm install.
-    echo  [OK] Dependencies already installed.
+    echo  [ERROR] npm install failed. Check your internet connection and try again.
+    echo.
+    pause
+    exit /b 1
 )
+echo  [OK] Dependencies installed.
+echo  [LOG] npm install completed successfully.
+goto :DEPS_DONE
+
+:DEPS_ALREADY_INSTALLED
+echo  [DEBUG] node_modules directory found. Skipping npm install.
+echo  [OK] Dependencies already installed.
+
+:DEPS_DONE
 echo  [LOG] STEP 5 complete.
 
 :: -------------------------------------------------------
