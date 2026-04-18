@@ -287,7 +287,7 @@ export const Timeline = (): HTMLElement => {
     // ---- Tooltip ----
     const tooltip = DOM.create('div', 'task-tooltip');
 
-    const score = computeTaskValueConverted(task.taskValue, mainCurrency, exchangeRates);
+    const convertedValue = computeTaskValueConverted(task.taskValue, mainCurrency, exchangeRates);
     const taskCurrency =
       task.taskValue.type === 'direct'
         ? task.taskValue.amount.currency
@@ -310,7 +310,7 @@ export const Timeline = (): HTMLElement => {
       <div class="tooltip-meta">
         <span class="tooltip-badge tooltip-badge-${task.status}">${statusLabels[task.status] || task.status}</span>
         <span class="tooltip-score">⚡ ${formatMoney(priorityScore, taskCurrency)}</span>
-        <span class="tooltip-value" title="Value in ${displayCurrency}">💰 ${formatMoney(score, displayCurrency)}</span>
+        <span class="tooltip-value" title="Value in ${displayCurrency}">💰 ${formatMoney(convertedValue, displayCurrency)}</span>
       </div>
       <div class="tooltip-dates">📅 ${startStr} → ${endStr}</div>
       ${task.tags.length ? `<div class="tooltip-tags">${task.tags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}

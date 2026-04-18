@@ -433,6 +433,7 @@ export const TaskForm = (
           setTimeout(() => periodBuilder.element.classList.remove('duration-error'), 2000);
         }
         form.reportValidity();
+        // Clear custom validity after reporting to avoid stale messages
         unitCostAmount.setCustomValidity('');
         probabilityInput.setCustomValidity('');
         return;
