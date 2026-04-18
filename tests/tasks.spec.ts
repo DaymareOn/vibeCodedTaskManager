@@ -30,16 +30,16 @@
  *   causes it to appear in the hover layer when the parent is hovered.
  *
  * Test suite 7 – Filter bar
- *   Verifies the search filter, status filter, and "Clear Filters"
- *   button all work correctly in the Timeline.
+ *   Verifies the search filter and status toggle buttons work correctly
+ *   in the Timeline.
  *
  * Test suite 8 – Theme switching
  *   Verifies that clicking each theme button applies the correct CSS
  *   class to the root <html> element.
  *
  * Test suite 9 – Show / hide cancelled tasks
- *   Verifies that the "Show Cancelled" checkbox correctly shows or hides
- *   cancelled tasks in the Timeline.
+ *   Verifies that the "Cancelled" status toggle button correctly shows or
+ *   hides cancelled tasks in the Timeline.
  *
  * Test suite 10 – Tools panel collapse / expand
  *   Verifies that the toggle button collapses and expands the tools panel.
@@ -261,7 +261,14 @@ test.describe('Add a new task via the Timeline', () => {
       .locator('.form-score-section input[type="date"]')
       .fill(deliveryDate.toISOString().slice(0, 10));
 
-    await page.fill('input[placeholder="ISO 8601 duration (e.g. P5D, PT4H, P1W)"]', 'P2D');
+    // Fill remaining estimate via the duration builder (P2D = 2 days)
+    // The estimate builder is the last .duration-builder in the score section
+    await page
+      .locator('.form-score-section .duration-builder')
+      .last()
+      .locator('.duration-num')
+      .nth(3) // index 3 = Days field (Y=0, M=1, W=2, D=3)
+      .fill('2');
 
     await page.click('button[type="submit"]');
 
@@ -388,7 +395,13 @@ test.describe('Add a sub-task via the Timeline modal', () => {
       .locator('.form-score-section input[type="date"]')
       .fill(deliveryDate.toISOString().slice(0, 10));
 
-    await page.fill('input[placeholder="ISO 8601 duration (e.g. P5D, PT4H, P1W)"]', 'PT2H');
+    // Fill remaining estimate via the duration builder (PT2H = 2 hours)
+    await page
+      .locator('.form-score-section .duration-builder')
+      .last()
+      .locator('.duration-num')
+      .nth(4) // index 4 = Hours field (Y=0, M=1, W=2, D=3, H=4)
+      .fill('2');
 
     await page.click('button[type="submit"]');
 
@@ -411,7 +424,7 @@ test.describe('Add a sub-task via the Timeline modal', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Suite 7 – Filter bar (search, status filter, clear)
+// Suite 7 – Filter bar (search, status toggles)
 // ---------------------------------------------------------------------------
 
 test.describe('Filter bar', () => {
@@ -435,7 +448,10 @@ test.describe('Filter bar', () => {
   });
 
   test('status filter shows only tasks with the selected status', async ({ page }) => {
-    await page.selectOption('select.filter-select', 'in-progress');
+    // Hide all statuses except 'in-progress' by clicking the other status buttons
+    await page.click('.status-btn-todo');
+    await page.click('.status-btn-done');
+    await page.click('.status-btn-cancelled');
 
     // An in-progress task should be visible
     await expect(
@@ -448,12 +464,13 @@ test.describe('Filter bar', () => {
     ).toHaveCount(0);
   });
 
-  test('Clear Filters button restores all tasks after a search', async ({ page }) => {
+  test('clearing the search input restores all tasks', async ({ page }) => {
     // "electricity" matches only "Pay quarterly electricity bill"
     await page.fill('input[placeholder="🔍 Search tasks…"]', 'electricity');
     await expect(page.locator('.task-rect')).toHaveCount(1, { timeout: 3_000 });
 
-    await page.click('button:has-text("Clear Filters")');
+    // Clear the search input
+    await page.fill('input[placeholder="🔍 Search tasks…"]', '');
 
     // All 13 root-level tasks should be visible again
     await expect(page.locator('.task-rect')).toHaveCount(13, { timeout: 3_000 });
@@ -533,7 +550,8 @@ test.describe('Show / hide cancelled tasks', () => {
   });
 
   test('unchecking "Show Cancelled" hides cancelled tasks from the Timeline', async ({ page }) => {
-    await page.uncheck('.tools-checkbox');
+    // Click the "Cancelled" status button to hide cancelled tasks
+    await page.click('.status-btn-cancelled');
 
     await expect(page.locator('.task-rect')).toHaveCount(1, { timeout: 3_000 });
     await expect(
@@ -542,10 +560,11 @@ test.describe('Show / hide cancelled tasks', () => {
   });
 
   test('re-checking "Show Cancelled" brings cancelled tasks back', async ({ page }) => {
-    await page.uncheck('.tools-checkbox');
+    await page.click('.status-btn-cancelled');
     await expect(page.locator('.task-rect')).toHaveCount(1, { timeout: 3_000 });
 
-    await page.check('.tools-checkbox');
+    // Click again to show cancelled tasks
+    await page.click('.status-btn-cancelled');
     await expect(page.locator('.task-rect')).toHaveCount(2, { timeout: 3_000 });
   });
 });

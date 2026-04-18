@@ -94,9 +94,50 @@ export function computePriorityScore(
 }
 
 /**
- * Format a monetary amount as a localised currency string (e.g. "1 500,00 €").
- * Falls back to "<amount> <currency>" when the locale API is unavailable.
+ * Convert an amount from one currency to the main/base currency.
+ *
+ * @param amount  The value to convert.
+ * @param from    The source ISO 4217 currency code.
+ * @param mainCurrency  The target ISO 4217 currency code.
+ * @param rates   Exchange-rate map returned by the store: rates[X] = "how many X per 1 mainCurrency".
+ *                If `from` is missing from the map the original amount is returned unchanged.
  */
+export function convertToMainCurrency(
+  amount: number,
+  from: string,
+  mainCurrency: string,
+  rates: Record<string, number>,
+): number {
+  if (from === mainCurrency) return amount;
+  const rate = rates[from];
+  if (!rate) return amount; // unknown currency — no conversion
+  return amount / rate;
+}
+
+/**
+ * Compute the monetary value of a task's `TaskValue`, optionally converting to a main currency.
+ *
+ * - Direct: returns `amount.amount` (converted if rates provided)
+ * - Event:  returns `unitCost.amount × probability` (unit cost converted if rates provided)
+ */
+export function computeTaskValueConverted(
+  taskValue: TaskValue,
+  mainCurrency: string,
+  rates: Record<string, number>,
+): number {
+  if (taskValue.type === 'direct') {
+    return convertToMainCurrency(taskValue.amount.amount, taskValue.amount.currency, mainCurrency, rates);
+  }
+  const convertedUnitCost = convertToMainCurrency(
+    taskValue.unitCost.amount,
+    taskValue.unitCost.currency,
+    mainCurrency,
+    rates,
+  );
+  return convertedUnitCost * taskValue.probability;
+}
+
+
 export function formatMoney(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat(undefined, {

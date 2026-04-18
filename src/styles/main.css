@@ -698,20 +698,41 @@ body {
 
 .filter-input::placeholder { color: var(--text-muted); }
 
-.filter-sort-label {
+/* Status toggle buttons in filter bar */
+.status-filter-buttons {
   display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  white-space: nowrap;
+  gap: 4px;
+  flex-wrap: wrap;
+  width: 100%;
 }
 
-.filter-checkbox {
+.status-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 5px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 0.72rem;
+  font-weight: 500;
   cursor: pointer;
-  accent-color: var(--primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  opacity: 0.5;
+  transition: opacity 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
 }
+
+.status-btn.active { opacity: 1; }
+
+.status-btn-todo.active        { background: var(--primary-muted);   color: var(--primary);   border-color: var(--primary); }
+.status-btn-in-progress.active { background: var(--warning-muted);   color: var(--warning);   border-color: var(--warning); }
+.status-btn-done.active        { background: var(--success-muted);   color: var(--success);   border-color: var(--success); }
+.status-btn-cancelled.active   { background: var(--cancelled-muted); color: var(--cancelled); border-color: var(--cancelled); }
+
+.status-btn:hover { opacity: 0.85; }
+
 
 /* ============================================================
    Import/Export Bar
@@ -877,3 +898,142 @@ select.form-input    { cursor: pointer; }
 .badge-done       { background: var(--success-muted); color: var(--success); }
 .badge-cancelled  { background: var(--cancelled-muted); color: var(--cancelled); }
 .badge-score      { background: var(--primary-muted); color: var(--primary); font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   Toggle group (value-type / delivery-type toggles in TaskForm)
+   ============================================================ */
+.toggle-group {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 0.38rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.toggle-btn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.toggle-btn.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.toggle-btn:hover:not(.active) {
+  background: var(--primary-muted);
+  color: var(--primary);
+}
+
+/* ============================================================
+   ISO 8601 Duration Builder
+   ============================================================ */
+.duration-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.duration-fields {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.duration-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.duration-num {
+  width: 42px;
+  text-align: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 0.3rem 0.25rem;
+  font-size: 0.82rem;
+  transition: border-color 0.2s;
+  /* Hide spin buttons for a cleaner look */
+  -moz-appearance: textfield;
+}
+.duration-num::-webkit-outer-spin-button,
+.duration-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.duration-num:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.duration-unit {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.duration-preview {
+  font-size: 0.72rem;
+  color: var(--primary);
+  font-family: 'Courier New', Courier, monospace;
+  background: var(--primary-muted);
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  align-self: flex-start;
+}
+
+.duration-builder.hidden { display: none; }
+
+/* Highlight when required value is missing */
+.duration-builder.duration-error .duration-num {
+  border-color: var(--danger);
+}
+.duration-builder.duration-error .duration-preview {
+  background: rgba(239,68,68,0.12);
+  color: var(--danger);
+}
+
+/* ============================================================
+   Currency select in Tools column
+   ============================================================ */
+.tools-currency-select {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 3px 5px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  max-width: 130px;
+}
+
+.tools-currency-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* ============================================================
+   Currency select in Task Form
+   ============================================================ */
+.form-currency-select {
+  min-width: 120px;
+  max-width: 160px;
+  flex: 0 0 auto;
+}
+

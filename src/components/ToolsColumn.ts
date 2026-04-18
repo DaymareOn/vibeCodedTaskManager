@@ -4,6 +4,54 @@ import type { Theme } from '../store/taskStore';
 import { FilterBar } from './FilterBar';
 import { ImportExport } from './ImportExport';
 
+/** ISO 4217 currencies shown in the Main Currency picker */
+const CURRENCIES: Array<{ code: string; name: string }> = [
+  { code: 'EUR', name: 'Euro' },
+  { code: 'USD', name: 'US Dollar' },
+  { code: 'GBP', name: 'British Pound' },
+  { code: 'JPY', name: 'Japanese Yen' },
+  { code: 'CHF', name: 'Swiss Franc' },
+  { code: 'CAD', name: 'Canadian Dollar' },
+  { code: 'AUD', name: 'Australian Dollar' },
+  { code: 'NZD', name: 'New Zealand Dollar' },
+  { code: 'CNY', name: 'Chinese Yuan' },
+  { code: 'HKD', name: 'Hong Kong Dollar' },
+  { code: 'SGD', name: 'Singapore Dollar' },
+  { code: 'SEK', name: 'Swedish Krona' },
+  { code: 'NOK', name: 'Norwegian Krone' },
+  { code: 'DKK', name: 'Danish Krone' },
+  { code: 'PLN', name: 'Polish Zloty' },
+  { code: 'CZK', name: 'Czech Koruna' },
+  { code: 'HUF', name: 'Hungarian Forint' },
+  { code: 'RON', name: 'Romanian Leu' },
+  { code: 'BGN', name: 'Bulgarian Lev' },
+  { code: 'ISK', name: 'Icelandic Krona' },
+  { code: 'MXN', name: 'Mexican Peso' },
+  { code: 'BRL', name: 'Brazilian Real' },
+  { code: 'ARS', name: 'Argentine Peso' },
+  { code: 'CLP', name: 'Chilean Peso' },
+  { code: 'COP', name: 'Colombian Peso' },
+  { code: 'PEN', name: 'Peruvian Sol' },
+  { code: 'INR', name: 'Indian Rupee' },
+  { code: 'KRW', name: 'South Korean Won' },
+  { code: 'TWD', name: 'Taiwan Dollar' },
+  { code: 'THB', name: 'Thai Baht' },
+  { code: 'MYR', name: 'Malaysian Ringgit' },
+  { code: 'IDR', name: 'Indonesian Rupiah' },
+  { code: 'PHP', name: 'Philippine Peso' },
+  { code: 'VND', name: 'Vietnamese Dong' },
+  { code: 'ZAR', name: 'South African Rand' },
+  { code: 'EGP', name: 'Egyptian Pound' },
+  { code: 'NGN', name: 'Nigerian Naira' },
+  { code: 'KES', name: 'Kenyan Shilling' },
+  { code: 'MAD', name: 'Moroccan Dirham' },
+  { code: 'SAR', name: 'Saudi Riyal' },
+  { code: 'AED', name: 'UAE Dirham' },
+  { code: 'ILS', name: 'Israeli Shekel' },
+  { code: 'TRY', name: 'Turkish Lira' },
+  { code: 'RUB', name: 'Russian Ruble' },
+];
+
 // ---- Helper: collapsible section ----
 function createSection(title: string): HTMLElement {
   const section = DOM.create('div', 'tools-section');
@@ -35,15 +83,6 @@ function createWheelControl(
   }, { passive: false });
 
   DOM.append(row, labelEl, zone);
-  return row;
-}
-
-// ---- Helper: read-only display row ----
-function createDisplayRow(label: string, initialValue: string, cssClass: string): HTMLElement {
-  const row = DOM.create('div', 'tools-row');
-  const labelEl = DOM.create('span', 'tools-label', label);
-  const valueEl = DOM.create('span', `tools-value ${cssClass}`, initialValue);
-  DOM.append(row, labelEl, valueEl);
   return row;
 }
 
@@ -101,25 +140,30 @@ export const ToolsColumn = (): HTMLElement => {
     '%',
   );
 
-  // Show/hide cancelled toggle
-  const showCancelledRow = DOM.create('div', 'tools-row');
-  const showCancelledLabel = DOM.create('label', 'tools-toggle-label');
-  const showCancelledCheckbox = DOM.create('input', 'tools-checkbox') as HTMLInputElement;
-  showCancelledCheckbox.type = 'checkbox';
-  showCancelledCheckbox.checked = useTaskStore.getState().showCancelled;
-  showCancelledLabel.textContent = ' Show Cancelled';
-  showCancelledLabel.prepend(showCancelledCheckbox);
-  DOM.append(showCancelledRow, showCancelledLabel);
+  DOM.append(displaySection, taskHeightRow, opacityRow);
 
-  showCancelledCheckbox.addEventListener('change', () => {
-    useTaskStore.getState().setShowCancelled(showCancelledCheckbox.checked);
+  // ---- Currency section ----
+  const currencySection = createSection('💱 Main Currency');
+
+  const currencyRow = DOM.create('div', 'tools-row');
+  const currencyLabel = DOM.create('span', 'tools-label', '🪙 Currency');
+  const currencySelect = DOM.create('select', 'tools-currency-select') as HTMLSelectElement;
+
+  const currentMain = useTaskStore.getState().mainCurrency;
+  CURRENCIES.forEach(({ code, name }) => {
+    const opt = document.createElement('option');
+    opt.value = code;
+    opt.textContent = `${code} – ${name}`;
+    if (code === currentMain) opt.selected = true;
+    currencySelect.appendChild(opt);
   });
 
-  // Zoom display rows
-  const hZoomRow = createDisplayRow('↔ H. Zoom', `${useTaskStore.getState().horizontalZoom}%`, 'hzoom-value');
-  const vZoomRow = createDisplayRow('↕ V. Zoom', `${useTaskStore.getState().verticalZoom}%`, 'vzoom-value');
+  currencySelect.addEventListener('change', () => {
+    useTaskStore.getState().setMainCurrency(currencySelect.value);
+  });
 
-  DOM.append(displaySection, taskHeightRow, opacityRow, showCancelledRow, hZoomRow, vZoomRow);
+  DOM.append(currencyRow, currencyLabel, currencySelect);
+  DOM.append(currencySection, currencyRow);
 
   // ---- Theme section ----
   const themeSection = createSection('🎨 Theme');
@@ -140,21 +184,12 @@ export const ToolsColumn = (): HTMLElement => {
   });
 
   // Assemble inner
-  DOM.append(inner, titleEl, searchSection, ioSection, displaySection, themeSection);
+  DOM.append(inner, titleEl, searchSection, ioSection, displaySection, currencySection, themeSection);
   DOM.append(col, toggleBtn, inner);
 
   // ---- Subscribe to store for live updates ----
   const updateFromStore = (): void => {
     const state = useTaskStore.getState();
-
-    // Zoom displays
-    const hZoomEl = hZoomRow.querySelector('.hzoom-value');
-    const vZoomEl = vZoomRow.querySelector('.vzoom-value');
-    if (hZoomEl) hZoomEl.textContent = `${state.horizontalZoom}%`;
-    if (vZoomEl) vZoomEl.textContent = `${state.verticalZoom}%`;
-
-    // Show-cancelled checkbox
-    showCancelledCheckbox.checked = state.showCancelled;
 
     // Theme buttons
     themeSection.querySelectorAll<HTMLElement>('.btn-theme').forEach((btn) => {
@@ -166,10 +201,16 @@ export const ToolsColumn = (): HTMLElement => {
     const opacityVal = opacityRow.querySelector('.tools-value');
     if (taskHeightVal) taskHeightVal.textContent = `${state.taskHeight}px`;
     if (opacityVal) opacityVal.textContent = `${Math.round(state.cancelledOpacity * 100)}%`;
+
+    // Currency selector
+    currencySelect.value = state.mainCurrency;
   };
 
   useTaskStore.subscribe(updateFromStore);
   updateFromStore();
+
+  // Trigger initial exchange rate fetch
+  useTaskStore.getState().fetchExchangeRatesIfNeeded();
 
   return col;
 };

@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import type { Task, TaskFilter } from '../types/Task';
 import { StorageManager } from '../utils/storage';
-import { computePriorityScore } from '../utils/priority';
 
 const MS_PER_DAY = 86_400_000;
+const EXCHANGE_RATE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export type Theme = 'dark-pro' | 'light-pro' | 'pastel';
 
@@ -14,12 +14,23 @@ export interface TaskStore {
   // --- Timeline / UI settings ---
   taskHeight: number;
   cancelledOpacity: number;
-  showCancelled: boolean;
   horizontalZoom: number;
   verticalZoom: number;
   theme: Theme;
   timelineOriginMs: number;
   verticalOffset: number;
+
+  // --- Currency settings ---
+  /** ISO 4217 code for the user's main display currency (e.g. "EUR") */
+  mainCurrency: string;
+  /**
+   * Exchange rates keyed by ISO 4217 code.
+   * rates[X] = "how many X per 1 mainCurrency unit"
+   * mainCurrency itself is always 1.0.
+   */
+  exchangeRates: Record<string, number>;
+  /** UTC timestamp (ms) when rates were last fetched */
+  exchangeRatesUpdatedAt: number;
 
   // Actions
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -33,12 +44,16 @@ export interface TaskStore {
   // UI actions
   setTaskHeight: (h: number) => void;
   setCancelledOpacity: (o: number) => void;
-  setShowCancelled: (v: boolean) => void;
   setHorizontalZoom: (z: number) => void;
   setVerticalZoom: (z: number) => void;
   setTheme: (t: Theme) => void;
   setTimelineOriginMs: (ms: number) => void;
   setVerticalOffset: (px: number) => void;
+
+  // Currency actions
+  setMainCurrency: (currency: string) => void;
+  /** Fetch fresh exchange rates if they are older than 24 h or the base has changed. */
+  fetchExchangeRatesIfNeeded: () => Promise<void>;
 
   // Getters
   getFilteredTasks: () => Task[];
@@ -52,12 +67,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   // Timeline / UI defaults
   taskHeight: 48,
   cancelledOpacity: 0.5,
-  showCancelled: true,
   horizontalZoom: 100,
   verticalZoom: 100,
   theme: 'dark-pro',
   timelineOriginMs: Date.now() - 90 * MS_PER_DAY,
   verticalOffset: 0,
+
+  // Currency defaults
+  mainCurrency: 'EUR',
+  exchangeRates: { EUR: 1 },
+  exchangeRatesUpdatedAt: 0,
 
   addTask: (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newTask: Task = {
@@ -134,21 +153,44 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   // UI actions
   setTaskHeight: (h) => set({ taskHeight: h }),
   setCancelledOpacity: (o) => set({ cancelledOpacity: o }),
-  setShowCancelled: (v) => set({ showCancelled: v }),
   setHorizontalZoom: (z) => set({ horizontalZoom: z }),
   setVerticalZoom: (z) => set({ verticalZoom: z }),
   setTheme: (t) => set({ theme: t }),
   setTimelineOriginMs: (ms) => set({ timelineOriginMs: ms }),
   setVerticalOffset: (px) => set({ verticalOffset: px }),
 
+  // Currency actions
+  setMainCurrency: (currency: string) => {
+    set({ mainCurrency: currency, exchangeRatesUpdatedAt: 0 }); // force refresh
+    get().fetchExchangeRatesIfNeeded();
+  },
+
+  fetchExchangeRatesIfNeeded: async () => {
+    const { mainCurrency, exchangeRates, exchangeRatesUpdatedAt } = get();
+    const age = Date.now() - exchangeRatesUpdatedAt;
+    // Skip if rates are fresh and already for this base
+    if (age < EXCHANGE_RATE_TTL_MS && exchangeRates[mainCurrency] === 1) return;
+    try {
+      const res = await fetch(`https://api.frankfurter.app/latest?from=${mainCurrency}`);
+      if (!res.ok) {
+        console.warn(`[TaskManager] Failed to fetch exchange rates: HTTP ${res.status}`);
+        return;
+      }
+      const data = (await res.json()) as { rates: Record<string, number> };
+      const rates: Record<string, number> = { ...data.rates, [mainCurrency]: 1 };
+      set({ exchangeRates: rates, exchangeRatesUpdatedAt: Date.now() });
+    } catch (err) {
+      // Network failure — keep stale rates and log for debugging
+      console.warn('[TaskManager] Exchange rate fetch failed, using stale/no-conversion rates.', err);
+    }
+  },
+
   getFilteredTasks: () => {
     const { tasks, filter } = get();
-    const now = Date.now();
 
-    // Only return root tasks (no parentId) at the top level
-    let result = tasks.filter((task) => {
+    return tasks.filter((task) => {
       if (task.parentId) return false;
-      if (filter.status && task.status !== filter.status) return false;
+      if (filter.hiddenStatuses?.includes(task.status)) return false;
       if (
         filter.search &&
         !task.title.toLowerCase().includes(filter.search.toLowerCase()) &&
@@ -158,16 +200,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }
       return true;
     });
-
-    if (filter.sortByScore) {
-      result = [...result].sort((a, b) => {
-        const scoreA = computePriorityScore(a, 1.0, now);
-        const scoreB = computePriorityScore(b, 1.0, now);
-        return scoreB - scoreA;
-      });
-    }
-
-    return result;
   },
 
   getSubTasks: (parentId: string) => {
