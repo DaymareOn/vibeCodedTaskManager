@@ -1,4 +1,5 @@
 import type { Task } from '../types/Task';
+import { sampleTasks } from '../data/sampleTasks';
 
 const STORAGE_KEY = 'tasks_data';
 
@@ -14,7 +15,12 @@ export const StorageManager = {
   loadTasks: (): Task[] => {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
-      return data ? JSON.parse(data) : [];
+      if (data) {
+        return JSON.parse(data);
+      }
+      // Seed with sample tasks on first load so users see examples
+      StorageManager.saveTasks(sampleTasks);
+      return sampleTasks;
     } catch (error) {
       console.error('Failed to load tasks:', error);
       return [];
