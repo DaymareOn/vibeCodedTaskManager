@@ -52,7 +52,7 @@ test.describe('Sample tasks in the UI', () => {
     // Root-level cards are direct children of .task-list — they do NOT have the
     // sub-task CSS class.
     const rootCards = page.locator('.task-card:not(.task-card-subtask)');
-    // 17 sample tasks minus 3 sub-tasks (003, 011, 016, 017 — tasks that have a parentId)
+    // 17 sample tasks minus 4 sub-tasks (003, 011, 016, 017 — tasks that have a parentId)
     // = 13 root-level tasks
     await expect(rootCards).toHaveCount(13);
   });
