@@ -1,1 +1,25 @@
-{"name":"vibe-coded-task-manager","version":"0.1.0","type":"module","scripts":{"dev":"vite","build":"tsc && vite build","preview":"vite preview","lint":"eslint src --ext ts,tsx","format":"prettier --write src"},"devDependencies":{"@typescript-eslint/eslint-plugin":"^7.0.0","@typescript-eslint/parser":"^7.0.0","eslint":"^8.56.0","prettier":"^3.1.1","typescript":"^5.3.3","vite":"^5.0.8"},"dependencies":{"zustand":"^4.4.1"}}
+{
+  "name": "vibe-coded-task-manager",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext ts,tsx",
+    "format": "prettier --write src",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8"
+  },
+  "dependencies": {
+    "zustand": "^4.4.1"
+  }
+}

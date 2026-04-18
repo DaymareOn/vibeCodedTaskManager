@@ -48,6 +48,7 @@ export const sampleTasks: Task[] = [
     remainingEstimate: { iso: 'PT1H' },
   },
   {
+    // Sub-task of "File income tax return" (001)
     id: '00000000-0000-0000-0000-000000000003',
     title: 'Declare child carer salary slips',
     description:
@@ -60,6 +61,7 @@ export const sampleTasks: Task[] = [
     taskValue: { type: 'direct', amount: { amount: 800, currency: 'EUR' } },
     targetDelivery: offsetDateOnly(SEED_DATE, 119),
     remainingEstimate: { iso: 'PT2H' },
+    parentId: '00000000-0000-0000-0000-000000000001',
   },
   {
     id: '00000000-0000-0000-0000-000000000004',
@@ -164,6 +166,7 @@ export const sampleTasks: Task[] = [
     remainingEstimate: { iso: 'PT3H' },
   },
   {
+    // Sub-task of "Renew home insurance policy" (004)
     id: '00000000-0000-0000-0000-000000000011',
     title: 'Organise home contents inventory',
     description:
@@ -175,6 +178,7 @@ export const sampleTasks: Task[] = [
     taskValue: { type: 'direct', amount: { amount: 100, currency: 'EUR' } },
     targetDelivery: offsetDateOnly(SEED_DATE, 270),
     remainingEstimate: { iso: 'P1D' },
+    parentId: '00000000-0000-0000-0000-000000000004',
   },
   {
     id: '00000000-0000-0000-0000-000000000012',
@@ -229,5 +233,35 @@ export const sampleTasks: Task[] = [
     taskValue: { type: 'direct', amount: { amount: 50000, currency: 'EUR' } },
     targetDelivery: offsetDateOnly(SEED_DATE, 181),
     remainingEstimate: { iso: 'P3D' },
+  },
+  {
+    // Sub-task of "Plan summer family holiday" (009)
+    id: '00000000-0000-0000-0000-000000000016',
+    title: 'Check passport expiry dates for all family members',
+    description:
+      'Verify that all passports are valid for at least 6 months beyond the return date. Renew any that are due to expire before or during the trip.',
+    status: 'todo',
+    tags: ['family', 'travel', 'admin'],
+    createdAt: offsetDate(SEED_DATE, 44, 20, 30), // 2026-02-14T20:30:00.000Z
+    updatedAt: offsetDate(SEED_DATE, 44, 20, 30),
+    taskValue: { type: 'direct', amount: { amount: 300, currency: 'EUR' } },
+    targetDelivery: offsetDateOnly(SEED_DATE, 120),
+    remainingEstimate: { iso: 'PT1H' },
+    parentId: '00000000-0000-0000-0000-000000000009',
+  },
+  {
+    // Sub-task of "Plan summer family holiday" (009)
+    id: '00000000-0000-0000-0000-000000000017',
+    title: 'Compare and book flights and accommodation',
+    description:
+      'Research flight options and accommodation packages for the destination shortlist. Book once the best option is identified.',
+    status: 'todo',
+    tags: ['family', 'travel', 'leisure'],
+    createdAt: offsetDate(SEED_DATE, 44, 21, 0), // 2026-02-14T21:00:00.000Z
+    updatedAt: offsetDate(SEED_DATE, 44, 21, 0),
+    taskValue: { type: 'direct', amount: { amount: 2500, currency: 'EUR' } },
+    targetDelivery: offsetDateOnly(SEED_DATE, 151),
+    remainingEstimate: { iso: 'P1D' },
+    parentId: '00000000-0000-0000-0000-000000000009',
   },
 ];

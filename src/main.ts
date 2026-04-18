@@ -4,6 +4,7 @@ import { useTaskStore } from './store/taskStore';
 import { TaskForm } from './components/TaskForm';
 import { TaskList } from './components/TaskList';
 import { FilterBar } from './components/FilterBar';
+import { ImportExport } from './components/ImportExport';
 import { DOM } from './utils/dom';
 
 const app = DOM.getElementById('app');
@@ -21,6 +22,10 @@ DOM.append(app, form);
 // Filter bar
 const filterBar = FilterBar();
 DOM.append(app, filterBar);
+
+// Import/Export toolbar
+const importExportBar = ImportExport();
+DOM.append(app, importExportBar);
 
 // Stats bar
 const statsBar = DOM.create('div', 'stats-bar');

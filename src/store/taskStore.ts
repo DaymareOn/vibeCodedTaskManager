@@ -13,6 +13,8 @@ export interface TaskStore {
   deleteTask: (id: string) => void;
   setFilter: (filter: TaskFilter) => void;
   loadTasks: () => void;
+  importTasks: (tasks: Task[]) => void;
+  exportTasks: () => string;
   
   // Getters
   getFilteredTasks: () => Task[];
@@ -72,6 +74,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   loadTasks: () => {
     const tasks = StorageManager.loadTasks();
     set({ tasks });
+  },
+
+  importTasks: (tasks: Task[]) => {
+    StorageManager.saveTasks(tasks);
+    set({ tasks });
+  },
+
+  exportTasks: () => {
+    return StorageManager.exportTasks(get().tasks);
   },
 
   getFilteredTasks: () => {
