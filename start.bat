@@ -90,11 +90,11 @@ for /f "tokens=2*" %%A in (
     'reg query "HKCU\Environment" /v Path 2^>nul'
 ) do set "USER_PATH=%%B"
 
-set "PATH=!MACHINE_PATH!;!USER_PATH!;%PATH%"
+set "PATH=!MACHINE_PATH!;!USER_PATH!"
 
 :: Also add the default Node.js install location just in case
-set "PATH=%ProgramFiles%\nodejs;%PATH%"
-set "PATH=%APPDATA%\npm;%PATH%"
+set "PATH=%ProgramFiles%\nodejs;!PATH!"
+set "PATH=%APPDATA%\npm;!PATH!"
 
 where node >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
