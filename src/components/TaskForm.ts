@@ -1,4 +1,4 @@
-import type { Task, Duration, TaskValue } from '../types/Task';
+import type { Task, Duration, TaskStatus, TaskValue } from '../types/Task';
 import { DOM } from '../utils/dom';
 
 type TaskFormData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
@@ -8,11 +8,13 @@ type TaskFormData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
  * @param onSubmit  Called with the form data when the user submits.
  * @param existingTask  When provided, the form is pre-filled for editing.
  * @param submitLabel  Label for the submit button.
+ * @param prefillStartDate  Optional ISO date to pre-fill the start date when creating.
  */
 export const TaskForm = (
   onSubmit: (task: TaskFormData) => void,
   existingTask?: Task,
   submitLabel = 'Add Task',
+  prefillStartDate?: string,
 ): HTMLElement => {
   const form = DOM.create('form', 'task-form') as HTMLFormElement;
 
@@ -152,6 +154,27 @@ export const TaskForm = (
   estimateInput.required = true;
   if (existingTask?.remainingEstimate) estimateInput.value = existingTask.remainingEstimate.iso;
 
+  // Status selector (only shown when editing)
+  const statusSelect = DOM.create('select', `form-input${existingTask ? '' : ' hidden'}`) as HTMLSelectElement;
+  statusSelect.innerHTML = `
+    <option value="todo">To Do</option>
+    <option value="in-progress">In Progress</option>
+    <option value="done">Done</option>
+    <option value="cancelled">Cancelled</option>
+  `;
+  if (existingTask) statusSelect.value = existingTask.status;
+  const statusLabelEl = DOM.create('label', `form-label${existingTask ? '' : ' hidden'}`, 'Status');
+
+  // Start date field
+  const startDateLabel = DOM.create('label', 'form-label', 'Start date (optional)');
+  const startDateInput = DOM.create('input', 'form-input') as HTMLInputElement;
+  startDateInput.type = 'date';
+  if (existingTask?.startDate) {
+    startDateInput.value = existingTask.startDate;
+  } else if (prefillStartDate) {
+    startDateInput.value = prefillStartDate;
+  }
+
   DOM.append(
     scoreSection,
     scoreSectionTitle,
@@ -200,13 +223,15 @@ export const TaskForm = (
     const taskData: TaskFormData = {
       title: titleInput.value,
       description: descriptionInput.value,
-      status: existingTask?.status ?? 'todo',
+      status: existingTask ? (statusSelect.value as TaskStatus) : 'todo',
       dueDate: dueDateInput.value || undefined,
       tags: tagsInput.value.split(',').map((tag) => tag.trim()).filter(Boolean),
       taskValue,
       targetDelivery,
       remainingEstimate,
       parentId: existingTask?.parentId,
+      startDate: startDateInput.value || undefined,
+      completedAt: existingTask?.completedAt,
     };
 
     onSubmit(taskData);
@@ -222,6 +247,13 @@ export const TaskForm = (
     }
   });
 
-  DOM.append(form, titleInput, descriptionInput, dueDateInput, tagsInput, scoreSection, submitBtn);
+  DOM.append(
+    form,
+    titleInput, descriptionInput, dueDateInput, tagsInput,
+    statusLabelEl, statusSelect,
+    startDateLabel, startDateInput,
+    scoreSection,
+    submitBtn,
+  );
   return form;
 };

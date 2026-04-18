@@ -1,5 +1,5 @@
 // Task interface definition
-export type TaskStatus = 'todo' | 'in-progress' | 'done';
+export type TaskStatus = 'todo' | 'in-progress' | 'done' | 'cancelled';
 
 /** ISO 4217 monetary amount (e.g. { amount: 1500, currency: "EUR" }) */
 export interface Money {
@@ -44,6 +44,10 @@ export interface Task {
   remainingEstimate: Duration;
   /** ID of the parent task (if this task is a sub-task) */
   parentId?: string;
+  /** Explicit start date as ISO date string; falls back to createdAt when omitted */
+  startDate?: string;
+  /** ISO date string set when the task transitions to 'done' or 'cancelled' */
+  completedAt?: string;
 }
 
 export interface TaskFilter {

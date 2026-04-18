@@ -1,16 +1,17 @@
 /**
  * E2E tests for the Vibe Coded Task Manager.
  *
- * Test suite 1 – Sample tasks visible in the UI
- *   Verifies that all root-level sample tasks and their sub-tasks are rendered
- *   correctly in the web UI after the app first loads (seeding path).
+ * Test suite 1 – Sample tasks visible in the Timeline UI
+ *   Verifies that all root-level sample tasks are rendered as
+ *   rectangles on the Timeline, and that hovering over a parent
+ *   task reveals its sub-tasks.
  *
  * Test suite 2 – Import / Export round-trip
  *   Verifies that:
  *     1. The app can import the bundled sampleTasks.json file.
- *     2. After import the tasks are visible in the UI.
- *     3. Exporting produces a JSON file whose content is byte-for-byte identical
- *        to the original sampleTasks.json.
+ *     2. After import the tasks are visible in the Timeline.
+ *     3. Exporting produces a JSON file whose content is
+ *        structurally identical to the original sampleTasks.json.
  */
 
 import { test, expect } from '@playwright/test';
@@ -21,15 +22,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Absolute path to the canonical sample-tasks fixture. */
-const SAMPLE_TASKS_JSON = path.resolve(
-  __dirname,
-  '../src/data/sampleTasks.json',
-);
+const SAMPLE_TASKS_JSON = path.resolve(__dirname, '../src/data/sampleTasks.json');
 
 /** Clear localStorage so each test starts from a clean state. */
 async function clearStorage(page: import('@playwright/test').Page): Promise<void> {
@@ -38,68 +31,69 @@ async function clearStorage(page: import('@playwright/test').Page): Promise<void
 }
 
 // ---------------------------------------------------------------------------
-// Suite 1 – Sample tasks visible in the UI (seed path)
+// Suite 1 – Sample tasks visible in the Timeline
 // ---------------------------------------------------------------------------
 
-test.describe('Sample tasks in the UI', () => {
+test.describe('Sample tasks in the Timeline', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    // Clear any previous data so the app seeds fresh sample tasks.
     await clearStorage(page);
+    // Wait for the timeline to populate with seeded tasks
+    await page.waitForSelector('.task-rect', { timeout: 10_000 });
   });
 
-  test('shows the correct number of root-level task cards', async ({ page }) => {
-    // Root-level cards are direct children of .task-list — they do NOT have the
-    // sub-task CSS class.
-    const rootCards = page.locator('.task-card:not(.task-card-subtask)');
-    // 17 sample tasks minus 4 sub-tasks (003, 011, 016, 017 — tasks that have a parentId)
-    // = 13 root-level tasks
-    await expect(rootCards).toHaveCount(13);
+  test('shows the correct number of root-level task rectangles', async ({ page }) => {
+    // 17 sample tasks minus 4 sub-tasks = 13 root-level rectangles on the Timeline
+    const rootRects = page.locator('.task-rect');
+    await expect(rootRects).toHaveCount(13);
   });
 
-  test('shows "File income tax return" with its sub-task', async ({ page }) => {
-    const parentCard = page.locator('.task-card', {
+  test('shows "File income tax return" on the Timeline', async ({ page }) => {
+    const rect = page.locator('.task-rect .task-title', { hasText: 'File income tax return' });
+    await expect(rect.first()).toBeVisible();
+  });
+
+  test('hovering "File income tax return" reveals "Declare child carer salary slips" sub-task', async ({ page }) => {
+    const parentRect = page.locator('.task-rect', {
       has: page.locator('.task-title', { hasText: 'File income tax return' }),
     });
-    await expect(parentCard).toBeVisible();
+    await parentRect.first().hover();
 
-    // Sub-task nested inside the parent card
-    const subTask = parentCard.locator('.task-card-subtask .task-title', {
+    const subTask = page.locator('.timeline-hover-layer .task-title', {
       hasText: 'Declare child carer salary slips',
     });
-    await expect(subTask).toBeVisible();
+    await expect(subTask).toBeVisible({ timeout: 3_000 });
   });
 
-  test('shows "Renew home insurance policy" with its sub-task', async ({ page }) => {
-    const parentCard = page.locator('.task-card', {
+  test('hovering "Renew home insurance policy" reveals its sub-task', async ({ page }) => {
+    const parentRect = page.locator('.task-rect', {
       has: page.locator('.task-title', { hasText: 'Renew home insurance policy' }),
     });
-    await expect(parentCard).toBeVisible();
+    await parentRect.first().hover();
 
-    const subTask = parentCard.locator('.task-card-subtask .task-title', {
+    const subTask = page.locator('.timeline-hover-layer .task-title', {
       hasText: 'Organise home contents inventory',
     });
-    await expect(subTask).toBeVisible();
+    await expect(subTask).toBeVisible({ timeout: 3_000 });
   });
 
-  test('shows "Plan summer family holiday" with both sub-tasks', async ({ page }) => {
-    const parentCard = page.locator('.task-card', {
+  test('hovering "Plan summer family holiday" reveals both sub-tasks', async ({ page }) => {
+    const parentRect = page.locator('.task-rect', {
       has: page.locator('.task-title', { hasText: 'Plan summer family holiday' }),
     });
-    await expect(parentCard).toBeVisible();
+    await parentRect.first().hover();
 
-    const subTask1 = parentCard.locator('.task-card-subtask .task-title', {
+    const subTask1 = page.locator('.timeline-hover-layer .task-title', {
       hasText: 'Check passport expiry dates for all family members',
     });
-    await expect(subTask1).toBeVisible();
-
-    const subTask2 = parentCard.locator('.task-card-subtask .task-title', {
+    const subTask2 = page.locator('.timeline-hover-layer .task-title', {
       hasText: 'Compare and book flights and accommodation',
     });
-    await expect(subTask2).toBeVisible();
+    await expect(subTask1).toBeVisible({ timeout: 3_000 });
+    await expect(subTask2).toBeVisible({ timeout: 3_000 });
   });
 
-  test('displays expected task titles in the UI', async ({ page }) => {
+  test('displays expected task titles in the Timeline', async ({ page }) => {
     const expectedTitles = [
       'File income tax return',
       'Schedule roof cleaning appointment',
@@ -118,7 +112,7 @@ test.describe('Sample tasks in the UI', () => {
 
     for (const title of expectedTitles) {
       await expect(
-        page.locator('.task-title', { hasText: title }).first(),
+        page.locator('.task-rect .task-title', { hasText: title }).first(),
       ).toBeVisible();
     }
   });
@@ -135,34 +129,33 @@ test.describe('Import / Export round-trip', () => {
   });
 
   test('can import sampleTasks.json and tasks become visible', async ({ page }) => {
-    // Trigger the file-input by clicking the Import button.
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser'),
       page.click('button:has-text("Import tasks")'),
     ]);
     await fileChooser.setFiles(SAMPLE_TASKS_JSON);
 
-    // Accept the confirmation dialog.
     page.once('dialog', (dialog) => dialog.accept());
 
-    // Wait for the root-level tasks to appear.
     await expect(
-      page.locator('.task-title', { hasText: 'File income tax return' }).first(),
+      page.locator('.task-rect .task-title', { hasText: 'File income tax return' }).first(),
     ).toBeVisible({ timeout: 10_000 });
 
-    // After import the sub-tasks must also be visible.
-    const holidayCard = page.locator('.task-card', {
+    // After import the hover overlay must show sub-tasks
+    const parentRect = page.locator('.task-rect', {
       has: page.locator('.task-title', { hasText: 'Plan summer family holiday' }),
     });
+    await parentRect.first().hover();
+
     await expect(
-      holidayCard.locator('.task-card-subtask .task-title', {
+      page.locator('.timeline-hover-layer .task-title', {
         hasText: 'Compare and book flights and accommodation',
       }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 5_000 });
   });
 
-  test('exported JSON is identical to sampleTasks.json', async ({ page }) => {
-    // --- 1. Import sample tasks ---
+  test('exported JSON is structurally identical to sampleTasks.json', async ({ page }) => {
+    // 1. Import sample tasks
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser'),
       page.click('button:has-text("Import tasks")'),
@@ -171,10 +164,10 @@ test.describe('Import / Export round-trip', () => {
     page.once('dialog', (dialog) => dialog.accept());
 
     await expect(
-      page.locator('.task-title', { hasText: 'File income tax return' }).first(),
+      page.locator('.task-rect .task-title', { hasText: 'File income tax return' }).first(),
     ).toBeVisible({ timeout: 10_000 });
 
-    // --- 2. Export and capture the downloaded file ---
+    // 2. Export and capture the downloaded file
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       page.click('button:has-text("Export tasks")'),
@@ -184,8 +177,6 @@ test.describe('Import / Export round-trip', () => {
     const exportedContent = fs.readFileSync(exportedPath!, 'utf-8');
     const originalContent = fs.readFileSync(SAMPLE_TASKS_JSON, 'utf-8');
 
-    // Parse both so we compare structured data (ignoring cosmetic whitespace
-    // differences while still catching any field or ordering divergence).
     const exported = JSON.parse(exportedContent) as unknown;
     const original = JSON.parse(originalContent) as unknown;
 

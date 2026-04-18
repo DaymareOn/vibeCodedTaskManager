@@ -8,12 +8,14 @@ const STATUS_LABELS: Record<Task['status'], string> = {
   todo: 'To Do',
   'in-progress': 'In Progress',
   done: 'Done',
+  cancelled: 'Cancelled',
 };
 
 const STATUS_NEXT: Record<Task['status'], Task['status']> = {
   todo: 'in-progress',
   'in-progress': 'done',
-  done: 'todo',
+  done: 'cancelled',
+  cancelled: 'todo',
 };
 
 /** Show a modal overlay with the given content. Returns a function to close it. */
