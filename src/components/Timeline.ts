@@ -17,6 +17,10 @@ const MS_PER_YEAR = 365.25 * MS_PER_DAY;
 const BASE_PX_PER_DAY = 3; // pixels per day at 100% horizontal zoom
 const TASK_GAP = 6; // gap between task rows
 const MIN_RECT_WIDTH = 4; // minimum task rectangle width in px
+const SCROLL_SPEED_MULTIPLIER = 0.6; // fraction of wheel delta applied to vertical scroll
+const LAYOUT_SETTLE_DELAY = 50; // ms to wait for DOM layout before initial timeline render
+const TIMELINE_PADDING_DAYS = 30; // days of padding before earliest task when auto-centering
+const TIMELINE_DEFAULT_PAST_DAYS = 60; // days before today used as default origin when no tasks exist
 
 // -------- Time utilities --------
 function getPxPerMs(hZoom: number): number {
@@ -454,7 +458,7 @@ export const Timeline = (): HTMLElement => {
         const totalHeight = tasks.length * (effectiveHeight + TASK_GAP);
         const bodyH = body.clientHeight || 400;
         const maxOffset = Math.max(0, totalHeight - bodyH);
-        const newOffset = Math.max(0, Math.min(maxOffset, store.verticalOffset + e.deltaY * 0.6));
+        const newOffset = Math.max(0, Math.min(maxOffset, store.verticalOffset + e.deltaY * SCROLL_SPEED_MULTIPLIER));
         store.setVerticalOffset(newOffset);
       }
     },
@@ -483,12 +487,15 @@ export const Timeline = (): HTMLElement => {
     if (rootTasks.length > 0) {
       const now = Date.now();
       const minStart = Math.min(...rootTasks.map((t) => getTaskStartMs(t)));
-      const newOrigin = Math.min(minStart - 30 * MS_PER_DAY, now - 60 * MS_PER_DAY);
+      const newOrigin = Math.min(
+        minStart - TIMELINE_PADDING_DAYS * MS_PER_DAY,
+        now - TIMELINE_DEFAULT_PAST_DAYS * MS_PER_DAY,
+      );
       state.setTimelineOriginMs(newOrigin);
     }
     renderRuler();
     renderCanvas();
-  }, 50);
+  }, LAYOUT_SETTLE_DELAY);
 
   return outer;
 };

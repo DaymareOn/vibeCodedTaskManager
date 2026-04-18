@@ -11,6 +11,9 @@
   --warning: #f59e0b;
   --danger: #ef4444;
   --cancelled: #6b7280;
+  --success-muted: rgba(16,185,129,0.15);
+  --warning-muted: rgba(245,158,11,0.15);
+  --cancelled-muted: rgba(107,114,128,0.15);
 
   --bg: #0f172a;
   --surface: #1e293b;
@@ -52,6 +55,9 @@
   --warning: #d97706;
   --danger: #dc2626;
   --cancelled: #9ca3af;
+  --success-muted: rgba(5,150,105,0.12);
+  --warning-muted: rgba(217,119,6,0.12);
+  --cancelled-muted: rgba(156,163,175,0.15);
 
   --bg: #f1f5f9;
   --surface: #ffffff;
@@ -88,6 +94,9 @@
   --warning: #fbbf24;
   --danger: #fb7185;
   --cancelled: #c4b5fd;
+  --success-muted: rgba(52,211,153,0.15);
+  --warning-muted: rgba(251,191,36,0.15);
+  --cancelled-muted: rgba(196,181,253,0.2);
 
   --bg: #fdf4ff;
   --surface: #fff9fe;
@@ -571,9 +580,9 @@ body {
 }
 
 .tooltip-badge-todo { background: var(--primary-muted); color: var(--primary); }
-.tooltip-badge-in-progress { background: rgba(245,158,11,0.15); color: var(--warning); }
-.tooltip-badge-done { background: rgba(16,185,129,0.15); color: var(--success); }
-.tooltip-badge-cancelled { background: rgba(107,114,128,0.15); color: var(--cancelled); }
+.tooltip-badge-in-progress { background: var(--warning-muted); color: var(--warning); }
+.tooltip-badge-done { background: var(--success-muted); color: var(--success); }
+.tooltip-badge-cancelled { background: var(--cancelled-muted); color: var(--cancelled); }
 
 .tooltip-score, .tooltip-value {
   font-size: 0.72rem;
@@ -865,6 +874,6 @@ select.form-input    { cursor: pointer; }
 
 .badge-todo       { background: var(--surface-2); color: var(--text-muted); }
 .badge-in-progress { background: var(--primary-muted); color: var(--primary); }
-.badge-done       { background: rgba(16,185,129,0.15); color: var(--success); }
-.badge-cancelled  { background: rgba(107,114,128,0.15); color: var(--cancelled); }
+.badge-done       { background: var(--success-muted); color: var(--success); }
+.badge-cancelled  { background: var(--cancelled-muted); color: var(--cancelled); }
 .badge-score      { background: var(--primary-muted); color: var(--primary); font-variant-numeric: tabular-nums; }

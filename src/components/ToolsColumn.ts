@@ -105,8 +105,8 @@ export const ToolsColumn = (): HTMLElement => {
   const showCancelledRow = DOM.create('div', 'tools-row');
   const showCancelledLabel = DOM.create('label', 'tools-toggle-label');
   const showCancelledCheckbox = DOM.create('input', 'tools-checkbox') as HTMLInputElement;
-  (showCancelledCheckbox as HTMLInputElement).type = 'checkbox';
-  (showCancelledCheckbox as HTMLInputElement).checked = useTaskStore.getState().showCancelled;
+  showCancelledCheckbox.type = 'checkbox';
+  showCancelledCheckbox.checked = useTaskStore.getState().showCancelled;
   showCancelledLabel.textContent = ' Show Cancelled';
   showCancelledLabel.prepend(showCancelledCheckbox);
   DOM.append(showCancelledRow, showCancelledLabel);
