@@ -149,3 +149,36 @@ export function formatMoney(amount: number, currency: string): string {
     return `${amount} ${currency}`;
   }
 }
+
+/** Format a number without any currency sign (plain decimal notation). */
+export function formatNumber(amount: number): string {
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+/**
+ * Compute the priority score for a task, with the monetary value converted to the main currency.
+ *
+ * This is identical to `computePriorityScore` but uses `computeTaskValueConverted` so that the
+ * result is expressed in the user's main currency rather than the task's native currency.
+ */
+export function computePriorityScoreConverted(
+  task: Task,
+  mainCurrency: string,
+  rates: Record<string, number>,
+  priorityCoefficient = 1.0,
+  now = Date.now(),
+): number {
+  const V = computeTaskValueConverted(task.taskValue, mainCurrency, rates);
+  const E = parseDuration(task.remainingEstimate.iso);
+  if (E <= 0) return V;
+
+  const deadlineMs = resolveDeadlineMs(task.targetDelivery, now);
+  const T = Math.max(0, deadlineMs - now);
+  const R = T / E;
+
+  if (R <= 1) return V;
+  return V * Math.exp(-priorityCoefficient * (R - 1));
+}

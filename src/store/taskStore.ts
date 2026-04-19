@@ -13,7 +13,6 @@ export interface TaskStore {
 
   // --- Timeline / UI settings ---
   taskHeight: number;
-  cancelledOpacity: number;
   horizontalZoom: number;
   verticalZoom: number;
   theme: Theme;
@@ -43,7 +42,6 @@ export interface TaskStore {
 
   // UI actions
   setTaskHeight: (h: number) => void;
-  setCancelledOpacity: (o: number) => void;
   setHorizontalZoom: (z: number) => void;
   setVerticalZoom: (z: number) => void;
   setTheme: (t: Theme) => void;
@@ -66,7 +64,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   // Timeline / UI defaults
   taskHeight: 48,
-  cancelledOpacity: 0.5,
   horizontalZoom: 100,
   verticalZoom: 100,
   theme: 'dark-pro',
@@ -152,7 +149,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   // UI actions
   setTaskHeight: (h) => set({ taskHeight: h }),
-  setCancelledOpacity: (o) => set({ cancelledOpacity: o }),
   setHorizontalZoom: (z) => set({ horizontalZoom: z }),
   setVerticalZoom: (z) => set({ verticalZoom: z }),
   setTheme: (t) => set({ theme: t }),

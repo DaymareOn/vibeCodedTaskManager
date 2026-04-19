@@ -2,10 +2,11 @@ import { useTaskStore } from '../store/taskStore';
 import { DOM } from '../utils/dom';
 import type { Task } from '../types/Task';
 import {
-  computePriorityScore,
+  computePriorityScoreConverted,
+  computeTaskValue,
   parseDuration,
   formatMoney,
-  computeTaskValueConverted,
+  formatNumber,
 } from '../utils/priority';
 import { TaskForm } from './TaskForm';
 
@@ -60,12 +61,26 @@ function escapeHtml(str: string): string {
 }
 
 // -------- Modal helper --------
-function showModal(content: HTMLElement): () => void {
+function showModal(content: HTMLElement, onBeforeClose?: () => boolean): () => void {
   const overlay = DOM.create('div', 'modal-overlay');
   const box = DOM.create('div', 'modal-box');
   const closeBtn = DOM.create('button', 'modal-close btn btn-secondary', '✕');
   (closeBtn as HTMLButtonElement).type = 'button';
-  const close = (): void => overlay.remove();
+
+  const close = (): void => {
+    if (onBeforeClose && !onBeforeClose()) return;
+    overlay.remove();
+    document.removeEventListener('keydown', handleKeyDown);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+    }
+  };
+  document.addEventListener('keydown', handleKeyDown);
+
   closeBtn.addEventListener('click', close);
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) close();
@@ -93,7 +108,7 @@ export const Timeline = (): HTMLElement => {
   // -------- Root tasks for display --------
   function getSortedRootTasks(): Task[] {
     const store = useTaskStore.getState();
-    const { filter } = store;
+    const { filter, mainCurrency, exchangeRates } = store;
     const tasks = store.tasks.filter((t) => {
       if (t.parentId) return false;
       if (filter.hiddenStatuses?.includes(t.status)) return false;
@@ -106,8 +121,12 @@ export const Timeline = (): HTMLElement => {
       }
       return true;
     });
-    // Sort by priority score descending (highest score first)
-    return [...tasks].sort((a, b) => computePriorityScore(b, 1.0, Date.now()) - computePriorityScore(a, 1.0, Date.now()));
+    // Sort by priority score descending (highest score first), using main currency for comparison
+    const now = Date.now();
+    return [...tasks].sort((a, b) =>
+      computePriorityScoreConverted(b, mainCurrency, exchangeRates, 1.0, now) -
+      computePriorityScoreConverted(a, mainCurrency, exchangeRates, 1.0, now),
+    );
   }
 
   // -------- Render ruler --------
@@ -189,7 +208,6 @@ export const Timeline = (): HTMLElement => {
       taskHeight,
       timelineOriginMs,
       verticalOffset,
-      cancelledOpacity,
     } = store;
     const now = Date.now();
     const effectiveHeight = taskHeight * (verticalZoom / 100);
@@ -227,10 +245,6 @@ export const Timeline = (): HTMLElement => {
       rect.dataset.id = task.id;
       rect.dataset.taskY = String(y);
       rect.dataset.taskHeight = String(effectiveHeight);
-
-      if (task.status === 'cancelled') {
-        rect.style.opacity = String(cancelledOpacity);
-      }
 
       // Scrolling title
       const titleWrapper = DOM.create('div', 'task-rect-title-wrapper');
@@ -278,7 +292,7 @@ export const Timeline = (): HTMLElement => {
     DOM.clear(hoverLayer);
 
     const store = useTaskStore.getState();
-    const { horizontalZoom, timelineOriginMs, cancelledOpacity, filter, mainCurrency, exchangeRates } = store;
+    const { horizontalZoom, timelineOriginMs, filter, mainCurrency, exchangeRates } = store;
     const now = Date.now();
     const pxPerMs = getPxPerMs(horizontalZoom);
     const rectTop = parseFloat(rectEl.style.top);
@@ -287,14 +301,14 @@ export const Timeline = (): HTMLElement => {
     // ---- Tooltip ----
     const tooltip = DOM.create('div', 'task-tooltip');
 
-    const convertedValue = computeTaskValueConverted(task.taskValue, mainCurrency, exchangeRates);
     const taskCurrency =
       task.taskValue.type === 'direct'
         ? task.taskValue.amount.currency
         : task.taskValue.unitCost.currency;
-    const displayCurrency = mainCurrency || taskCurrency;
-    // Re-compute priority score using converted value
-    const priorityScore = computePriorityScore(task, 1.0, now);
+    // Priority score in main currency (no currency sign in tooltip)
+    const priorityScore = computePriorityScoreConverted(task, mainCurrency, exchangeRates, 1.0, now);
+    // Raw value in the task's own currency
+    const rawValue = computeTaskValue(task.taskValue);
     const startStr = new Date(getTaskStartMs(task)).toLocaleDateString();
     const endStr = new Date(getTaskEndMs(task, now)).toLocaleDateString();
     const statusLabels: Record<string, string> = {
@@ -309,8 +323,8 @@ export const Timeline = (): HTMLElement => {
       ${task.description ? `<div class="tooltip-desc">${escapeHtml(task.description)}</div>` : ''}
       <div class="tooltip-meta">
         <span class="tooltip-badge tooltip-badge-${task.status}">${statusLabels[task.status] || task.status}</span>
-        <span class="tooltip-score">⚡ ${formatMoney(priorityScore, taskCurrency)}</span>
-        <span class="tooltip-value" title="Value in ${displayCurrency}">💰 ${formatMoney(convertedValue, displayCurrency)}</span>
+        <span class="tooltip-score">⚡ ${formatNumber(priorityScore)}</span>
+        <span class="tooltip-value">💰 ${formatMoney(rawValue, taskCurrency)}</span>
       </div>
       <div class="tooltip-dates">📅 ${startStr} → ${endStr}</div>
       ${task.tags.length ? `<div class="tooltip-tags">${task.tags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -346,10 +360,6 @@ export const Timeline = (): HTMLElement => {
       subRect.style.width = `${subW}px`;
       subRect.style.height = `${subHeight}px`;
 
-      if (sub.status === 'cancelled') {
-        subRect.style.opacity = String(cancelledOpacity);
-      }
-
       const subTitleWrapper = DOM.create('div', 'task-rect-title-wrapper');
       const subTitle = DOM.create('span', 'task-rect-title task-title');
       subTitle.textContent = sub.title;
@@ -368,10 +378,8 @@ export const Timeline = (): HTMLElement => {
     const editForm = TaskForm(
       (updated) => {
         useTaskStore.getState().updateTask(task.id, updated);
-        closeModal();
       },
       task,
-      'Save Changes',
     );
 
     const actionsRow = DOM.create('div', 'modal-actions');
@@ -388,7 +396,7 @@ export const Timeline = (): HTMLElement => {
         undefined,
         'Add Sub-task',
       );
-      closeSub = showModal(subForm);
+      closeSub = showModal(subForm.element);
     });
 
     const deleteBtn = DOM.create('button', 'btn btn-danger', '🗑 Delete Task');
@@ -400,8 +408,8 @@ export const Timeline = (): HTMLElement => {
     });
 
     DOM.append(actionsRow, subTaskBtn, deleteBtn);
-    DOM.append(container, editForm, actionsRow);
-    closeModal = showModal(container);
+    DOM.append(container, editForm.element, actionsRow);
+    closeModal = showModal(container, editForm.save);
   }
 
   // -------- Click on empty area → add task --------
@@ -424,7 +432,7 @@ export const Timeline = (): HTMLElement => {
       'Add Task',
       clickDate,
     );
-    closeAdd = showModal(addForm);
+    closeAdd = showModal(addForm.element);
   });
 
   // -------- Wheel events --------

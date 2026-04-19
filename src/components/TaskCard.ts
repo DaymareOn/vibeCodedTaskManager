@@ -1,7 +1,7 @@
 import type { Task } from '../types/Task';
 import { DOM } from '../utils/dom';
 import { useTaskStore } from '../store/taskStore';
-import { computePriorityScore, computeTaskValue, formatMoney } from '../utils/priority';
+import { computePriorityScoreConverted, computeTaskValue, formatMoney, formatNumber } from '../utils/priority';
 import { TaskForm } from './TaskForm';
 
 const STATUS_LABELS: Record<Task['status'], string> = {
@@ -18,13 +18,30 @@ const STATUS_NEXT: Record<Task['status'], Task['status']> = {
   cancelled: 'todo',
 };
 
-/** Show a modal overlay with the given content. Returns a function to close it. */
-function showModal(content: HTMLElement): () => void {
+/** Show a modal overlay with the given content. Returns a function to close it.
+ * If onBeforeClose is provided it is called before any close attempt;
+ * returning false prevents the modal from closing.
+ */
+function showModal(content: HTMLElement, onBeforeClose?: () => boolean): () => void {
   const overlay = DOM.create('div', 'modal-overlay');
   const box = DOM.create('div', 'modal-box');
   const closeBtn = DOM.create('button', 'modal-close btn btn-secondary', '✕');
   (closeBtn as HTMLButtonElement).type = 'button';
-  const close = (): void => overlay.remove();
+
+  const close = (): void => {
+    if (onBeforeClose && !onBeforeClose()) return;
+    overlay.remove();
+    document.removeEventListener('keydown', handleKeyDown);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+    }
+  };
+  document.addEventListener('keydown', handleKeyDown);
+
   closeBtn.addEventListener('click', close);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   DOM.append(box, closeBtn, content);
@@ -59,16 +76,17 @@ export const TaskCard = (task: Task, depth = 0): HTMLElement => {
   }
 
   // Priority score badge (always shown since score fields are required)
-  const currency =
+  const taskCurrency =
     task.taskValue.type === 'direct'
       ? task.taskValue.amount.currency
       : task.taskValue.unitCost.currency;
-  const score = computePriorityScore(task);
+  const { mainCurrency, exchangeRates } = useTaskStore.getState();
+  const score = computePriorityScoreConverted(task, mainCurrency, exchangeRates);
   const value = computeTaskValue(task.taskValue);
-  const scoreEl = DOM.create('span', 'badge badge-score', `⚡ ${formatMoney(score, currency)}`);
+  const scoreEl = DOM.create('span', 'badge badge-score', `⚡ ${formatMoney(score, mainCurrency)}`);
   scoreEl.title =
-    `Priority score: ${formatMoney(score, currency)}` +
-    ` (value: ${formatMoney(value, currency)})`;
+    `Priority score: ${formatNumber(score)}` +
+    ` (value: ${formatMoney(value, taskCurrency)})`;
   DOM.append(meta, scoreEl);
 
   if (task.tags && task.tags.length > 0) {
@@ -91,16 +109,13 @@ export const TaskCard = (task: Task, depth = 0): HTMLElement => {
 
   const editBtn = DOM.create('button', 'btn btn-secondary', '✏ Edit');
   editBtn.addEventListener('click', () => {
-    let closeEdit: () => void;
     const editForm = TaskForm(
       (updated) => {
         useTaskStore.getState().updateTask(task.id, updated);
-        closeEdit();
       },
       task,
-      'Save Changes',
     );
-    closeEdit = showModal(editForm);
+    showModal(editForm.element, editForm.save);
   });
 
   const addSubBtn = DOM.create('button', 'btn btn-secondary', '+ Sub-task');
@@ -114,7 +129,7 @@ export const TaskCard = (task: Task, depth = 0): HTMLElement => {
       undefined,
       'Add Sub-task',
     );
-    closeSub = showModal(subForm);
+    closeSub = showModal(subForm.element);
   });
 
   const deleteBtn = DOM.create('button', 'btn btn-danger', 'Delete');

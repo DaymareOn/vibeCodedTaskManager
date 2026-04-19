@@ -3,6 +3,13 @@ import { DOM } from '../utils/dom';
 
 type TaskFormData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
 
+/** Returned by TaskForm so callers can embed the element and trigger save programmatically. */
+export interface TaskFormResult {
+  element: HTMLElement;
+  /** Validate the form and call onSubmit if valid. Returns true when saved successfully. */
+  save: () => boolean;
+}
+
 /** ISO 4217 currencies available in the currency picker */
 const CURRENCIES: Array<{ code: string; name: string }> = [
   { code: 'EUR', name: 'Euro' },
@@ -178,8 +185,6 @@ function createDurationBuilder(initialIso = ''): {
     inputs[key] = input;
   });
 
-  const preview = DOM.create('div', 'duration-preview');
-
   const compose = (): string =>
     composeDuration(
       parseInt(inputs.years.value) || 0,
@@ -191,15 +196,7 @@ function createDurationBuilder(initialIso = ''): {
       parseInt(inputs.seconds.value) || 0,
     );
 
-  const update = (): void => {
-    const iso = compose();
-    preview.textContent = iso ? iso : '—';
-  };
-
-  fields.querySelectorAll('input').forEach((inp) => inp.addEventListener('input', update));
-  update();
-
-  DOM.append(container, fields, preview);
+  DOM.append(container, fields);
 
   return {
     element: container,
@@ -213,7 +210,6 @@ function createDurationBuilder(initialIso = ''): {
       inputs.hours.value   = p.hours   ? String(p.hours)   : '';
       inputs.minutes.value = p.minutes ? String(p.minutes) : '';
       inputs.seconds.value = p.seconds ? String(p.seconds) : '';
-      update();
     },
   };
 }
@@ -230,7 +226,7 @@ export const TaskForm = (
   existingTask?: Task,
   submitLabel = 'Add Task',
   prefillStartDate?: string,
-): HTMLElement => {
+): TaskFormResult => {
   const form = DOM.create('form', 'task-form') as HTMLFormElement;
 
   const titleInput = DOM.create('input', 'form-input') as HTMLInputElement;
@@ -373,16 +369,29 @@ export const TaskForm = (
     existingTask?.remainingEstimate ? existingTask.remainingEstimate.iso : '',
   );
 
-  // Status selector (only shown when editing)
-  const statusSelect = DOM.create('select', `form-input${existingTask ? '' : ' hidden'}`) as HTMLSelectElement;
-  statusSelect.innerHTML = `
-    <option value="todo">To Do</option>
-    <option value="in-progress">In Progress</option>
-    <option value="done">Done</option>
-    <option value="cancelled">Cancelled</option>
-  `;
-  if (existingTask) statusSelect.value = existingTask.status;
+  // Status selector – toggle buttons, only shown when editing
+  const STATUS_OPTIONS: Array<{ value: TaskStatus; label: string; cssClass: string }> = [
+    { value: 'todo',        label: '⬜ To Do',      cssClass: 'status-btn-todo' },
+    { value: 'in-progress', label: '🔄 In Progress', cssClass: 'status-btn-in-progress' },
+    { value: 'done',        label: '✅ Done',        cssClass: 'status-btn-done' },
+    { value: 'cancelled',   label: '❌ Cancelled',   cssClass: 'status-btn-cancelled' },
+  ];
+  let currentStatus: TaskStatus = existingTask ? existingTask.status : 'todo';
   const statusLabelEl = DOM.create('label', `form-label${existingTask ? '' : ' hidden'}`, 'Status');
+  const statusButtonsRow = DOM.create('div', `status-filter-buttons${existingTask ? '' : ' hidden'}`);
+  STATUS_OPTIONS.forEach(({ value, label, cssClass }) => {
+    const btn = DOM.create('button', `status-btn ${cssClass}${value === currentStatus ? ' active' : ''}`) as HTMLButtonElement;
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.dataset.value = value;
+    btn.addEventListener('click', () => {
+      currentStatus = value;
+      statusButtonsRow.querySelectorAll<HTMLElement>('.status-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.value === value);
+      });
+    });
+    DOM.append(statusButtonsRow, btn);
+  });
 
   // Start date field
   const startDateLabel = DOM.create('label', 'form-label', 'Start date (optional)');
@@ -407,16 +416,17 @@ export const TaskForm = (
 
   const submitBtn = DOM.create('button', 'btn-primary', submitLabel);
   (submitBtn as HTMLButtonElement).type = 'submit';
+  // In edit mode the submit button is hidden; saving happens via save()
+  if (existingTask) submitBtn.classList.add('hidden');
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-
+  /** Validate form fields, call onSubmit if valid. Returns true on success. */
+  const doSubmit = (): boolean => {
     // Build taskValue
     let taskValue: TaskValue;
     if (valueType === 'direct') {
       if (!directAmount.value) {
         directAmount.reportValidity();
-        return;
+        return false;
       }
       taskValue = {
         type: 'direct',
@@ -428,15 +438,13 @@ export const TaskForm = (
         if (!unitCostAmount.value) unitCostAmount.setCustomValidity('Please enter a unit cost.');
         if (!probabilityInput.value) probabilityInput.setCustomValidity('Please enter a probability.');
         if (!periodIso) {
-          // Highlight the period builder container
           periodBuilder.element.classList.add('duration-error');
           setTimeout(() => periodBuilder.element.classList.remove('duration-error'), 2000);
         }
         form.reportValidity();
-        // Clear custom validity after reporting to avoid stale messages
         unitCostAmount.setCustomValidity('');
         probabilityInput.setCustomValidity('');
-        return;
+        return false;
       }
       taskValue = {
         type: 'event',
@@ -451,7 +459,7 @@ export const TaskForm = (
     if (deliveryType === 'date') {
       if (!deliveryDateInput.value) {
         deliveryDateInput.reportValidity();
-        return;
+        return false;
       }
       targetDelivery = deliveryDateInput.value;
     } else {
@@ -459,7 +467,7 @@ export const TaskForm = (
       if (!durIso) {
         deliveryDurationBuilder.element.classList.add('duration-error');
         setTimeout(() => deliveryDurationBuilder.element.classList.remove('duration-error'), 2000);
-        return;
+        return false;
       }
       targetDelivery = { iso: durIso };
     }
@@ -468,14 +476,14 @@ export const TaskForm = (
     if (!estimateIso) {
       estimateBuilder.element.classList.add('duration-error');
       setTimeout(() => estimateBuilder.element.classList.remove('duration-error'), 2000);
-      return;
+      return false;
     }
     const remainingEstimate: Duration = { iso: estimateIso };
 
     const taskData: TaskFormData = {
       title: titleInput.value,
       description: descriptionInput.value,
-      status: existingTask ? (statusSelect.value as TaskStatus) : 'todo',
+      status: currentStatus,
       dueDate: dueDateInput.value || undefined,
       tags: tagsInput.value.split(',').map((tag) => tag.trim()).filter(Boolean),
       taskValue,
@@ -490,6 +498,7 @@ export const TaskForm = (
     if (!existingTask) {
       form.reset();
       // Restore defaults after reset
+      currentStatus = 'todo';
       valueType = 'direct';
       deliveryType = 'date';
       valueTypeToggle.setValue('direct');
@@ -500,15 +509,21 @@ export const TaskForm = (
       showValueFields();
       showDeliveryFields();
     }
+    return true;
+  };
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    doSubmit();
   });
 
   DOM.append(
     form,
     titleInput, descriptionInput, dueDateInput, tagsInput,
-    statusLabelEl, statusSelect,
+    statusLabelEl, statusButtonsRow,
     startDateLabel, startDateInput,
     scoreSection,
     submitBtn,
   );
-  return form;
+  return { element: form, save: doSubmit };
 };

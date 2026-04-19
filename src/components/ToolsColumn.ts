@@ -132,15 +132,7 @@ export const ToolsColumn = (): HTMLElement => {
     'px',
   );
 
-  const opacityRow = createWheelControl(
-    '👁 Cancelled opacity',
-    () => Math.round(useTaskStore.getState().cancelledOpacity * 100),
-    (v) => useTaskStore.getState().setCancelledOpacity(Math.max(0, Math.min(100, v)) / 100),
-    5,
-    '%',
-  );
-
-  DOM.append(displaySection, taskHeightRow, opacityRow);
+  DOM.append(displaySection, taskHeightRow);
 
   // ---- Currency section ----
   const currencySection = createSection('💱 Main Currency');
@@ -198,9 +190,7 @@ export const ToolsColumn = (): HTMLElement => {
 
     // Wheel zone value displays
     const taskHeightVal = taskHeightRow.querySelector('.tools-value');
-    const opacityVal = opacityRow.querySelector('.tools-value');
     if (taskHeightVal) taskHeightVal.textContent = `${state.taskHeight}px`;
-    if (opacityVal) opacityVal.textContent = `${Math.round(state.cancelledOpacity * 100)}%`;
 
     // Currency selector
     currencySelect.value = state.mainCurrency;
