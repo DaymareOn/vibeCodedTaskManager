@@ -58,6 +58,14 @@ const CURRENCIES: Array<{ code: string; name: string }> = [
   { code: 'RUB', name: 'Russian Ruble' },
 ];
 
+/** Status toggle button options used in the edit form. */
+const STATUS_OPTIONS: Array<{ value: TaskStatus; label: string; cssClass: string }> = [
+  { value: 'todo',        label: '⬜ To Do',      cssClass: 'status-btn-todo' },
+  { value: 'in-progress', label: '🔄 In Progress', cssClass: 'status-btn-in-progress' },
+  { value: 'done',        label: '✅ Done',        cssClass: 'status-btn-done' },
+  { value: 'cancelled',   label: '❌ Cancelled',   cssClass: 'status-btn-cancelled' },
+];
+
 /** Create a currency <select> pre-filled with ISO 4217 codes */
 function createCurrencySelect(initial = 'EUR'): HTMLSelectElement {
   const select = DOM.create('select', 'form-input form-currency-select') as HTMLSelectElement;
@@ -370,12 +378,6 @@ export const TaskForm = (
   );
 
   // Status selector – toggle buttons, only shown when editing
-  const STATUS_OPTIONS: Array<{ value: TaskStatus; label: string; cssClass: string }> = [
-    { value: 'todo',        label: '⬜ To Do',      cssClass: 'status-btn-todo' },
-    { value: 'in-progress', label: '🔄 In Progress', cssClass: 'status-btn-in-progress' },
-    { value: 'done',        label: '✅ Done',        cssClass: 'status-btn-done' },
-    { value: 'cancelled',   label: '❌ Cancelled',   cssClass: 'status-btn-cancelled' },
-  ];
   let currentStatus: TaskStatus = existingTask ? existingTask.status : 'todo';
   const statusLabelEl = DOM.create('label', `form-label${existingTask ? '' : ' hidden'}`, 'Status');
   const statusButtonsRow = DOM.create('div', `status-filter-buttons${existingTask ? '' : ' hidden'}`);
