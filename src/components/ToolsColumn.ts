@@ -3,6 +3,7 @@ import { useTaskStore } from '../store/taskStore';
 import type { Theme } from '../store/taskStore';
 import { FilterBar } from './FilterBar';
 import { ImportExport } from './ImportExport';
+import { KeyboardConfigManager } from '../utils/keyboardConfig';
 
 /** ISO 4217 currencies shown in the Main Currency picker */
 const CURRENCIES: Array<{ code: string; name: string }> = [
@@ -177,8 +178,42 @@ export const ToolsColumn = (): HTMLElement => {
     DOM.append(themeSection, btn);
   });
 
+  // ---- Help section ----
+  const helpSection = createSection('⌨ Keyboard Help');
+
+  const helpKeyRow  = DOM.create('div', 'tools-row');
+  const helpKeyLabel = DOM.create('span', 'tools-label', '🆘 Help key');
+  const helpKeyInput = DOM.create('input', 'form-input tools-help-key-input') as HTMLInputElement;
+  helpKeyInput.type        = 'text';
+  helpKeyInput.maxLength   = 20;
+  helpKeyInput.value       = KeyboardConfigManager.get().helpKey;
+  helpKeyInput.placeholder = 'e.g. F1';
+  helpKeyInput.title       = 'Press a key to set the shortcut that opens the overlay';
+
+  // Update the config when the user focuses the input and presses a key
+  helpKeyInput.addEventListener('keydown', (e) => {
+    e.preventDefault();
+    const key = e.key;
+    if (key === 'Escape') {
+      helpKeyInput.blur();
+      return;
+    }
+    helpKeyInput.value = key;
+    KeyboardConfigManager.setHelpKey(key);
+  });
+
+  DOM.append(helpKeyRow, helpKeyLabel, helpKeyInput);
+
+  const openHelpBtn = DOM.create('button', 'btn btn-secondary tools-open-help-btn', '⌨ Open overlay (F1)');
+  openHelpBtn.addEventListener('click', () => {
+    // Dispatch a custom event that main.ts listens to
+    document.dispatchEvent(new CustomEvent('open-keyboard-overlay'));
+  });
+
+  DOM.append(helpSection, helpKeyRow, openHelpBtn);
+
   // Assemble inner
-  DOM.append(inner, titleEl, searchSection, ioSection, displaySection, currencySection, themeSection);
+  DOM.append(inner, titleEl, searchSection, ioSection, displaySection, currencySection, themeSection, helpSection);
   DOM.append(col, toggleBtn, inner);
 
   // ---- Subscribe to store for live updates ----

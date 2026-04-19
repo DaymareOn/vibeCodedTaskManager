@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Filter bar >> clearing the search input restores all tasks
-- Location: tests/tasks.spec.ts:471:3
+- Location: tests/tasks.spec.ts:467:3
 
 # Error details
 

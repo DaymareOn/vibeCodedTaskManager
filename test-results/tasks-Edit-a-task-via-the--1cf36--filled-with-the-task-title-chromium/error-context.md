@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Edit a task via the Timeline modal >> clicking a task rect opens the edit column pre-filled with the task title
-- Location: tests/tasks.spec.ts:296:3
+- Location: tests/tasks.spec.ts:292:3
 
 # Error details
 

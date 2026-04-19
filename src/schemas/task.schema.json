@@ -1,0 +1,149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "task-schema-v0.1.0",
+  "$comment": "Data Model version: 0.1.0. Bump $id and add a migration in migrations.ts whenever this schema changes.",
+  "title": "Task",
+  "description": "A single work item managed by the Vibe Coded Task Manager.",
+  "type": "object",
+  "required": ["id", "title", "description", "status", "createdAt", "updatedAt", "tags", "taskValue", "targetDelivery", "remainingEstimate"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier (UUID v4 recommended)."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable task title. Must not be empty."
+    },
+    "description": {
+      "type": "string",
+      "description": "Longer description of the task (may be empty)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["todo", "in-progress", "done", "cancelled"],
+      "description": "Current lifecycle status of the task."
+    },
+    "createdAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}",
+      "description": "ISO 8601 datetime when the task was created."
+    },
+    "updatedAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}",
+      "description": "ISO 8601 datetime when the task was last modified."
+    },
+    "dueDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Optional hard deadline as an ISO 8601 date (YYYY-MM-DD)."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Free-form tags for categorisation."
+    },
+    "taskValue": {
+      "$ref": "#/definitions/TaskValue"
+    },
+    "targetDelivery": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "ISO 8601 date when the task should be delivered."
+        },
+        { "$ref": "#/definitions/Duration" }
+      ],
+      "description": "Target delivery as an absolute ISO date or a Duration relative to now."
+    },
+    "remainingEstimate": {
+      "$ref": "#/definitions/Duration",
+      "description": "Estimated remaining work as an ISO 8601 duration."
+    },
+    "parentId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ID of the parent task; present only on sub-tasks."
+    },
+    "startDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Optional explicit start date; falls back to createdAt when absent."
+    },
+    "completedAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}",
+      "description": "ISO 8601 datetime set when status transitions to 'done' or 'cancelled'."
+    }
+  },
+  "definitions": {
+    "Money": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "type": "number",
+          "description": "Monetary value (finite number, may be negative for liabilities)."
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ISO 4217 currency code, e.g. \"EUR\"."
+        }
+      }
+    },
+    "Duration": {
+      "type": "object",
+      "required": ["iso"],
+      "additionalProperties": false,
+      "properties": {
+        "iso": {
+          "type": "string",
+          "pattern": "^P(?:\\d+(?:\\.\\d+)?Y)?(?:\\d+(?:\\.\\d+)?M)?(?:\\d+(?:\\.\\d+)?W)?(?:\\d+(?:\\.\\d+)?D)?(?:T(?:\\d+(?:\\.\\d+)?H)?(?:\\d+(?:\\.\\d+)?M)?(?:\\d+(?:\\.\\d+)?S)?)?$",
+          "minLength": 2,
+          "description": "ISO 8601 duration string, e.g. \"P2D\", \"PT3H30M\"."
+        }
+      }
+    },
+    "TaskValue": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "amount"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["direct"] },
+            "amount": { "$ref": "#/definitions/Money" }
+          },
+          "description": "Direct monetary value."
+        },
+        {
+          "type": "object",
+          "required": ["type", "unitCost", "probability", "period"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["event"] },
+            "unitCost": { "$ref": "#/definitions/Money" },
+            "probability": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Probability [0,1] that the event occurs over the given period."
+            },
+            "period": {
+              "$ref": "#/definitions/Duration",
+              "description": "Reference period for the probability."
+            }
+          },
+          "description": "Expected-value calculation: cost × probability."
+        }
+      ]
+    }
+  }
+}

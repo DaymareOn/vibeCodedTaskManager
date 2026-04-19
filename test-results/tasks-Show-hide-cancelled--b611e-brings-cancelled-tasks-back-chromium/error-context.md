@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Show / hide cancelled tasks >> re-checking "Show Cancelled" brings cancelled tasks back
-- Location: tests/tasks.spec.ts:566:3
+- Location: tests/tasks.spec.ts:562:3
 
 # Error details
 

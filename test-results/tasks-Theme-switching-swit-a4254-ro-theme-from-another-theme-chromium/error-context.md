@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Theme switching >> switches back to Dark Pro theme from another theme
-- Location: tests/tasks.spec.ts:503:3
+- Location: tests/tasks.spec.ts:499:3
 
 # Error details
 

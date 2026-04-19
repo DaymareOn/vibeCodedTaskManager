@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Filter bar >> status filter shows only tasks with the selected status
-- Location: tests/tasks.spec.ts:454:3
+- Location: tests/tasks.spec.ts:450:3
 
 # Error details
 

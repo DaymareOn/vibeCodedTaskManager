@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Task, TaskFilter } from '../types/Task';
 import { StorageManager } from '../utils/storage';
+import { Changelog } from '../utils/changelog';
 
 const MS_PER_DAY = 86_400_000;
 const EXCHANGE_RATE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -86,6 +87,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     set((state) => {
       const updated = [...state.tasks, newTask];
       StorageManager.saveTasks(updated);
+      Changelog.recordCreate(newTask);
       return { tasks: updated };
     });
   },
@@ -110,6 +112,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           : task,
       );
       StorageManager.saveTasks(updated);
+      if (existing) {
+        const newTask = updated.find((t) => t.id === id)!;
+        Changelog.recordUpdate(existing, newTask);
+      }
       return { tasks: updated };
     });
   },
@@ -123,6 +129,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         state.tasks.filter((t) => t.parentId === taskId).forEach((t) => collect(t.id));
       };
       collect(id);
+      // Record deletions before removing from array
+      state.tasks.filter((task) => toDelete.has(task.id)).forEach((task) => {
+        Changelog.recordDelete(task);
+      });
       const updated = state.tasks.filter((task) => !toDelete.has(task.id));
       StorageManager.saveTasks(updated);
       return { tasks: updated };
@@ -140,6 +150,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   importTasks: (tasks: Task[]) => {
     StorageManager.saveTasks(tasks);
+    Changelog.reset();
     set({ tasks });
   },
 

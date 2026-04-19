@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Tools panel collapse / expand >> clicking the toggle button collapses the tools panel
-- Location: tests/tasks.spec.ts:585:3
+- Location: tests/tasks.spec.ts:581:3
 
 # Error details
 

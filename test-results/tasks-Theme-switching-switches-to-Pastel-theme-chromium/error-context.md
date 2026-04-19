@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Theme switching >> switches to Pastel theme
-- Location: tests/tasks.spec.ts:498:3
+- Location: tests/tasks.spec.ts:494:3
 
 # Error details
 

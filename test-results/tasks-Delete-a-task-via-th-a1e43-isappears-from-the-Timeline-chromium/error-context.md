@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Delete a task via the Timeline modal >> can delete a task and it disappears from the Timeline
-- Location: tests/tasks.spec.ts:342:3
+- Location: tests/tasks.spec.ts:338:3
 
 # Error details
 

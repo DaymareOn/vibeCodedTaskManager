@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Filter bar >> search filter shows only tasks whose title or description matches
-- Location: tests/tasks.spec.ts:441:3
+- Location: tests/tasks.spec.ts:437:3
 
 # Error details
 

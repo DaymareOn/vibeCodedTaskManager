@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Theme switching >> switches to Light Pro theme
-- Location: tests/tasks.spec.ts:493:3
+- Location: tests/tasks.spec.ts:489:3
 
 # Error details
 

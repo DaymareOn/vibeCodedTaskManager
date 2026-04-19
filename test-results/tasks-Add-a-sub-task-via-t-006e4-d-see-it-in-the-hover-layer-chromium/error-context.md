@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Add a sub-task via the Timeline modal >> can add a sub-task and see it in the hover layer
-- Location: tests/tasks.spec.ts:377:3
+- Location: tests/tasks.spec.ts:373:3
 
 # Error details
 

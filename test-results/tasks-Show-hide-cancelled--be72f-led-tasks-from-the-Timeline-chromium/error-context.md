@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Show / hide cancelled tasks >> unchecking "Show Cancelled" hides cancelled tasks from the Timeline
-- Location: tests/tasks.spec.ts:556:3
+- Location: tests/tasks.spec.ts:552:3
 
 # Error details
 

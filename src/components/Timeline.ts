@@ -411,6 +411,13 @@ export const Timeline = (onEditTask?: (task: Task) => void): HTMLElement => {
   });
 
   // -------- Wheel events --------
+  // Scroll mapping:
+  //   Ctrl + deltaY          → horizontal zoom (keep cursor-time fixed)
+  //   deltaX (touchpad)      → horizontal pan (timeline scroll left/right)
+  //   Shift + deltaY         → vertical zoom
+  //   plain deltaY           → vertical scroll
+  // deltaX and deltaY are handled independently so diagonal touchpad swipes
+  // pan and scroll simultaneously.
   outer.addEventListener(
     'wheel',
     (e) => {
@@ -418,7 +425,7 @@ export const Timeline = (onEditTask?: (task: Task) => void): HTMLElement => {
       const store = useTaskStore.getState();
 
       if (e.ctrlKey) {
-        // Horizontal zoom – keep time under cursor fixed
+        // Ctrl + vertical wheel → horizontal zoom (keep time under cursor fixed)
         const zoomDelta = e.deltaY > 0 ? -10 : 10;
         const newZoom = Math.max(10, Math.min(2000, store.horizontalZoom + zoomDelta));
         const bodyRect = body.getBoundingClientRect();
@@ -427,20 +434,32 @@ export const Timeline = (onEditTask?: (task: Task) => void): HTMLElement => {
         const newOriginMs = timeAtMouse - mouseX / getPxPerMs(newZoom);
         store.setHorizontalZoom(newZoom);
         store.setTimelineOriginMs(newOriginMs);
-      } else if (e.shiftKey) {
-        // Vertical zoom
-        const zoomDelta = e.deltaY > 0 ? -10 : 10;
-        const newZoom = Math.max(10, Math.min(500, store.verticalZoom + zoomDelta));
-        store.setVerticalZoom(newZoom);
-      } else {
-        // Vertical scroll
-        const tasks = getSortedRootTasks();
-        const effectiveHeight = store.taskHeight * (store.verticalZoom / 100);
-        const totalHeight = tasks.length * (effectiveHeight + TASK_GAP);
-        const bodyH = body.clientHeight || 400;
-        const maxOffset = Math.max(0, totalHeight - bodyH);
-        const newOffset = Math.max(0, Math.min(maxOffset, store.verticalOffset + e.deltaY * SCROLL_SPEED_MULTIPLIER));
-        store.setVerticalOffset(newOffset);
+        return; // don't process deltaX when zooming
+      }
+
+      // Horizontal pan via deltaX (touchpad two-finger horizontal swipe)
+      if (e.deltaX !== 0) {
+        const panMs = e.deltaX / getPxPerMs(store.horizontalZoom);
+        store.setTimelineOriginMs(store.timelineOriginMs + panMs);
+      }
+
+      // Vertical scroll or zoom via deltaY
+      if (e.deltaY !== 0) {
+        if (e.shiftKey) {
+          // Shift + vertical wheel → vertical zoom
+          const zoomDelta = e.deltaY > 0 ? -10 : 10;
+          const newZoom = Math.max(10, Math.min(500, store.verticalZoom + zoomDelta));
+          store.setVerticalZoom(newZoom);
+        } else {
+          // Plain vertical wheel → vertical scroll
+          const tasks = getSortedRootTasks();
+          const effectiveHeight = store.taskHeight * (store.verticalZoom / 100);
+          const totalHeight = tasks.length * (effectiveHeight + TASK_GAP);
+          const bodyH = body.clientHeight || 400;
+          const maxOffset = Math.max(0, totalHeight - bodyH);
+          const newOffset = Math.max(0, Math.min(maxOffset, store.verticalOffset + e.deltaY * SCROLL_SPEED_MULTIPLIER));
+          store.setVerticalOffset(newOffset);
+        }
       }
     },
     { passive: false },

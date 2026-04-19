@@ -7,7 +7,7 @@
 # Test info
 
 - Name: tasks.spec.ts >> Show / hide cancelled tasks >> both active and cancelled tasks are shown by default
-- Location: tests/tasks.spec.ts:552:3
+- Location: tests/tasks.spec.ts:548:3
 
 # Error details
 

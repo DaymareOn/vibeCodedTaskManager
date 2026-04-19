@@ -1182,3 +1182,244 @@ select.form-input    { cursor: pointer; }
   background: var(--border);
   border-radius: 2px;
 }
+
+/* ============================================================
+   Help key input in Tools column
+   ============================================================ */
+.tools-help-key-input {
+  flex: 1;
+  max-width: 80px;
+  text-align: center;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.82rem;
+}
+
+.tools-open-help-btn {
+  width: 100%;
+  font-size: 0.82rem;
+}
+
+/* ============================================================
+   Keyboard & Mouse Overlay
+   ============================================================ */
+.ko-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+  outline: none;
+}
+
+.ko-overlay.hidden { display: none; }
+
+.ko-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.6rem;
+  width: 100%;
+  max-width: 900px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Title bar */
+.ko-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.7rem;
+}
+
+.ko-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  flex: 1;
+}
+
+.ko-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.ko-close-btn {
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.82rem;
+  transition: background 0.15s;
+  margin-left: auto;
+}
+.ko-close-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+/* Keyboard grid */
+.ko-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+}
+
+.ko-row {
+  display: flex;
+  gap: 3px;
+}
+
+/* Individual keys */
+.ko-key {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 5px 3px;
+  min-height: 46px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  position: relative;
+  overflow: hidden;
+}
+
+.ko-key:hover {
+  background: var(--primary-muted);
+  border-color: var(--primary);
+}
+
+.ko-key.ko-key-editing {
+  background: var(--primary-muted);
+  border-color: var(--primary);
+  outline: 2px solid var(--primary);
+}
+
+.ko-key-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: pre;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.ko-key-desc {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  pointer-events: none;
+}
+
+.ko-key-edit-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 0.65rem;
+  padding: 0;
+  caret-color: var(--primary);
+  flex: 1;
+}
+
+/* Modifier combos row */
+.ko-combos-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ko-combos-title,
+.ko-mouse-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ko-combos-grid {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ko-combo-key {
+  flex-basis: auto !important;
+  min-width: 160px !important;
+  max-width: 260px;
+}
+
+/* Mouse section */
+.ko-mouse-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ko-mouse-diagram {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.ko-mouse-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.ko-mouse-btn {
+  flex-basis: 90px !important;
+  min-width: 90px !important;
+  min-height: 72px !important;
+  border-radius: 6px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 6px;
+}
+
+.ko-mouse-scrolls {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ko-scroll-key {
+  flex-basis: auto !important;
+  min-width: 150px !important;
+  min-height: 30px !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px;
+  padding: 4px 8px !important;
+}
+
+.ko-scroll-key .ko-key-label { min-width: 80px; }
+
+/* Panel scrollbar */
+.ko-panel::-webkit-scrollbar { width: 4px; }
+.ko-panel::-webkit-scrollbar-track { background: transparent; }
+.ko-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
