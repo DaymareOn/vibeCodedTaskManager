@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: tasks.spec.ts >> Edit a task via the Timeline modal >> can update a task title and see the change reflected in the Timeline
-- Location: tests/tasks.spec.ts:312:3
+- Name: tasks.spec.ts >> Edit a task via the Timeline modal >> clicking a task rect opens the edit column pre-filled with the task title
+- Location: tests/tasks.spec.ts:296:3
 
 # Error details
 

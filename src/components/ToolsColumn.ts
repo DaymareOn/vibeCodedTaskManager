@@ -76,6 +76,8 @@ function createWheelControl(
   DOM.append(zone, valueDisplay);
 
   zone.addEventListener('wheel', (e) => {
+    // Allow Ctrl+wheel to pass through so the browser can handle zoom.
+    if (e.ctrlKey) return;
     e.preventDefault();
     const delta = e.deltaY < 0 ? step : -step;
     setValue(getValue() + delta);

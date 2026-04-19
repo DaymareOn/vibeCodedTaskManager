@@ -1,5 +1,6 @@
 import { useTaskStore } from '../store/taskStore';
 import { DOM } from '../utils/dom';
+import { showModal } from '../utils/modal';
 import type { Task } from '../types/Task';
 import {
   computePriorityScoreConverted,
@@ -60,39 +61,8 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
-// -------- Modal helper --------
-function showModal(content: HTMLElement, onBeforeClose?: () => boolean): () => void {
-  const overlay = DOM.create('div', 'modal-overlay');
-  const box = DOM.create('div', 'modal-box');
-  const closeBtn = DOM.create('button', 'modal-close btn btn-secondary', '✕');
-  (closeBtn as HTMLButtonElement).type = 'button';
-
-  const close = (): void => {
-    if (onBeforeClose && !onBeforeClose()) return;
-    overlay.remove();
-    document.removeEventListener('keydown', handleKeyDown);
-  };
-
-  const handleKeyDown = (e: KeyboardEvent): void => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      close();
-    }
-  };
-  document.addEventListener('keydown', handleKeyDown);
-
-  closeBtn.addEventListener('click', close);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) close();
-  });
-  DOM.append(box, closeBtn, content);
-  DOM.append(overlay, box);
-  document.body.appendChild(overlay);
-  return close;
-}
-
 // -------- Timeline component --------
-export const Timeline = (): HTMLElement => {
+export const Timeline = (onEditTask?: (task: Task) => void): HTMLElement => {
   const outer = DOM.create('div', 'timeline');
   const ruler = DOM.create('div', 'timeline-ruler');
   const body = DOM.create('div', 'timeline-body');
@@ -370,8 +340,13 @@ export const Timeline = (): HTMLElement => {
     });
   }
 
-  // -------- Task action modal --------
+  // -------- Task action modal (fallback when no onEditTask callback) --------
   function showTaskEditModal(task: Task): void {
+    if (onEditTask) {
+      onEditTask(task);
+      return;
+    }
+
     const container = DOM.create('div', 'task-action-modal');
     let closeModal: () => void;
 

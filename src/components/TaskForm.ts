@@ -248,9 +248,22 @@ export const TaskForm = (
   descriptionInput.rows = 3;
   if (existingTask) descriptionInput.value = existingTask.description;
 
+  const dueDateLabel = DOM.create('label', 'form-label', 'Due date (optional)');
   const dueDateInput = DOM.create('input', 'form-input') as HTMLInputElement;
   dueDateInput.type = 'date';
   if (existingTask?.dueDate) dueDateInput.value = existingTask.dueDate;
+
+  // In edit mode, display the creation date (read-only) for reference.
+  const createdAtRow = DOM.create('div', `form-created-at-row${existingTask ? '' : ' hidden'}`);
+  if (existingTask) {
+    const createdAtLabel = DOM.create('span', 'form-label', 'Created');
+    const createdAtValue = DOM.create(
+      'span',
+      'form-created-at-value',
+      new Date(existingTask.createdAt).toLocaleString(),
+    );
+    DOM.append(createdAtRow, createdAtLabel, createdAtValue);
+  }
 
   const tagsInput = DOM.create('input', 'form-input') as HTMLInputElement;
   tagsInput.type = 'text';
@@ -521,7 +534,8 @@ export const TaskForm = (
 
   DOM.append(
     form,
-    titleInput, descriptionInput, dueDateInput, tagsInput,
+    createdAtRow,
+    titleInput, descriptionInput, dueDateLabel, dueDateInput, tagsInput,
     statusLabelEl, statusButtonsRow,
     startDateLabel, startDateInput,
     scoreSection,

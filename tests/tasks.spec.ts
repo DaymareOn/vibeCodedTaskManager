@@ -282,6 +282,10 @@ test.describe('Add a new task via the Timeline', () => {
 // Suite 4 – Edit a task via the Timeline modal
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Suite 4 – Edit a task via the Edit Task column
+// ---------------------------------------------------------------------------
+
 test.describe('Edit a task via the Timeline modal', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
@@ -289,7 +293,7 @@ test.describe('Edit a task via the Timeline modal', () => {
     await page.waitForSelector('.task-rect', { timeout: 10_000 });
   });
 
-  test('clicking a task rect opens the edit modal pre-filled with the task title', async ({
+  test('clicking a task rect opens the edit column pre-filled with the task title', async ({
     page,
   }) => {
     await page
@@ -299,8 +303,8 @@ test.describe('Edit a task via the Timeline modal', () => {
       .first()
       .click();
 
-    await expect(page.locator('.modal-overlay')).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator('input[placeholder="Task title"]')).toHaveValue(
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
+    await expect(page.locator('.edit-task-column input[placeholder="Task title"]')).toHaveValue(
       'File income tax return',
     );
   });
@@ -313,10 +317,10 @@ test.describe('Edit a task via the Timeline modal', () => {
       .first()
       .click();
 
-    await expect(page.locator('.modal-overlay')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
 
-    await page.locator('input[placeholder="Task title"]').fill('Driving licence renewed');
-    await page.click('button[type="submit"]');
+    await page.locator('.edit-task-column input[placeholder="Task title"]').fill('Driving licence renewed');
+    await page.click('button:has-text("Save Changes")');
 
     await expect(
       page.locator('.task-rect .task-title', { hasText: 'Driving licence renewed' }).first(),
@@ -325,7 +329,7 @@ test.describe('Edit a task via the Timeline modal', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Suite 5 – Delete a task via the Timeline modal
+// Suite 5 – Delete a task via the Edit Task column
 // ---------------------------------------------------------------------------
 
 test.describe('Delete a task via the Timeline modal', () => {
@@ -347,7 +351,7 @@ test.describe('Delete a task via the Timeline modal', () => {
       .first()
       .click();
 
-    await expect(page.locator('.modal-overlay')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
 
     // Accept the confirmation dialog that appears before deletion
     page.once('dialog', (dialog) => dialog.accept());
@@ -360,7 +364,7 @@ test.describe('Delete a task via the Timeline modal', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Suite 6 – Add a sub-task via the Timeline modal
+// Suite 6 – Add a sub-task via the Edit Task column
 // ---------------------------------------------------------------------------
 
 test.describe('Add a sub-task via the Timeline modal', () => {
@@ -371,7 +375,7 @@ test.describe('Add a sub-task via the Timeline modal', () => {
   });
 
   test('can add a sub-task and see it in the hover layer', async ({ page }) => {
-    // Open the edit modal for a task that currently has no sub-tasks
+    // Open the edit column for a task that currently has no sub-tasks
     await page
       .locator('.task-rect', {
         has: page.locator('.task-title', { hasText: 'Fix leaky bathroom faucet' }),
@@ -379,13 +383,13 @@ test.describe('Add a sub-task via the Timeline modal', () => {
       .first()
       .click();
 
-    await expect(page.locator('.modal-overlay')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
 
-    // The "+ Add Sub-task" button closes the current modal and opens a sub-task form
+    // The "+ Add Sub-task" button collapses the edit column and opens a sub-task form modal
     await page.click('button:has-text("Add Sub-task")');
-    await expect(page.locator('.task-form')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('.modal-overlay .task-form')).toBeVisible({ timeout: 5_000 });
 
-    // Fill in the sub-task details
+    // Fill in the sub-task details (column is collapsed so its form is hidden)
     await page.fill('input[placeholder="Task title"]', 'Replace the faucet washer');
     await page.fill('input[placeholder="Amount (e.g. 1500)"]', '25');
 
@@ -592,6 +596,115 @@ test.describe('Tools panel collapse / expand', () => {
 
     await page.click('.tools-toggle-btn');
     await expect(page.locator('.tools-column')).not.toHaveClass(/collapsed/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite 11 – Data Model compliance
+// Validates that every entry in sampleTasks.json conforms to the Task schema.
+// This is a pure data test and does not require a browser page.
+// ---------------------------------------------------------------------------
+
+/** ISO 8601 date-only pattern (YYYY-MM-DD). */
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+/** ISO 8601 datetime pattern (YYYY-MM-DDTHH:mm:ss.sssZ or +offset). */
+const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+/** ISO 8601 duration pattern (e.g. P1D, PT2H30M, P1Y2M3DT4H). */
+const ISO_DURATION_RE = /^P(?:\d+(?:\.\d+)?Y)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?W)?(?:\d+(?:\.\d+)?D)?(?:T(?:\d+(?:\.\d+)?H)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?S)?)?$/;
+/** Valid task status values. */
+const VALID_STATUSES = new Set(['todo', 'in-progress', 'done', 'cancelled']);
+
+test.describe('Data Model compliance', () => {
+  test('all sample tasks in sampleTasks.json comply with the Task data model', () => {
+    const rawContent = fs.readFileSync(SAMPLE_TASKS_JSON, 'utf-8');
+    const tasks = JSON.parse(rawContent) as unknown[];
+
+    expect(Array.isArray(tasks), 'sampleTasks.json root must be an array').toBe(true);
+    expect(tasks.length, 'sampleTasks.json must contain at least one task').toBeGreaterThan(0);
+
+    tasks.forEach((raw, index) => {
+      const t = raw as Record<string, unknown>;
+      const label = (field: string): string => `task[${index}] "${String(t.title ?? index)}" – ${field}`;
+
+      // id: non-empty string
+      expect(typeof t.id, label('id must be a string')).toBe('string');
+      expect((t.id as string).length > 0, label('id must not be empty')).toBe(true);
+
+      // title: non-empty string
+      expect(typeof t.title, label('title must be a string')).toBe('string');
+      expect((t.title as string).length > 0, label('title must not be empty')).toBe(true);
+
+      // description: string (may be empty)
+      expect(typeof t.description, label('description must be a string')).toBe('string');
+
+      // status: one of the valid values
+      expect(VALID_STATUSES.has(t.status as string), label(`status "${String(t.status)}" must be one of ${[...VALID_STATUSES].join(', ')}`)).toBe(true);
+
+      // createdAt: non-empty ISO 8601 datetime string
+      expect(typeof t.createdAt, label('createdAt must be a string')).toBe('string');
+      expect(ISO_DATETIME_RE.test(t.createdAt as string), label('createdAt must be an ISO 8601 datetime')).toBe(true);
+
+      // updatedAt: non-empty ISO 8601 datetime string
+      expect(typeof t.updatedAt, label('updatedAt must be a string')).toBe('string');
+      expect(ISO_DATETIME_RE.test(t.updatedAt as string), label('updatedAt must be an ISO 8601 datetime')).toBe(true);
+
+      // tags: array of strings
+      expect(Array.isArray(t.tags), label('tags must be an array')).toBe(true);
+      (t.tags as unknown[]).forEach((tag, ti) => {
+        expect(typeof tag, label(`tags[${ti}] must be a string`)).toBe('string');
+      });
+
+      // taskValue: direct or event
+      const tv = t.taskValue as Record<string, unknown>;
+      expect(tv !== null && typeof tv === 'object', label('taskValue must be an object')).toBe(true);
+      expect(['direct', 'event'].includes(tv.type as string), label('taskValue.type must be "direct" or "event"')).toBe(true);
+
+      if (tv.type === 'direct') {
+        const amt = tv.amount as Record<string, unknown>;
+        expect(typeof amt, label('taskValue.amount must be an object')).toBe('object');
+        expect(typeof amt.amount === 'number' && isFinite(amt.amount as number), label('taskValue.amount.amount must be a finite number')).toBe(true);
+        expect(typeof amt.currency === 'string' && (amt.currency as string).length > 0, label('taskValue.amount.currency must be a non-empty string')).toBe(true);
+      } else {
+        const uc = tv.unitCost as Record<string, unknown>;
+        expect(typeof uc, label('taskValue.unitCost must be an object')).toBe('object');
+        expect(typeof uc.amount === 'number' && isFinite(uc.amount as number), label('taskValue.unitCost.amount must be a finite number')).toBe(true);
+        expect(typeof uc.currency === 'string' && (uc.currency as string).length > 0, label('taskValue.unitCost.currency must be a non-empty string')).toBe(true);
+        expect(typeof tv.probability === 'number' && (tv.probability as number) >= 0 && (tv.probability as number) <= 1, label('taskValue.probability must be a number in [0, 1]')).toBe(true);
+        const period = tv.period as Record<string, unknown>;
+        expect(typeof period?.iso === 'string' && ISO_DURATION_RE.test(period.iso as string), label('taskValue.period.iso must be a valid ISO 8601 duration')).toBe(true);
+      }
+
+      // targetDelivery: ISO date string OR Duration object
+      const td = t.targetDelivery;
+      const isDateStr = typeof td === 'string' && ISO_DATE_RE.test(td);
+      const isDuration = typeof td === 'object' && td !== null && typeof (td as Record<string, unknown>).iso === 'string' && ISO_DURATION_RE.test((td as Record<string, unknown>).iso as string);
+      expect(isDateStr || isDuration, label('targetDelivery must be an ISO date string or a Duration object')).toBe(true);
+
+      // remainingEstimate: Duration object with valid ISO string
+      const re = t.remainingEstimate as Record<string, unknown>;
+      expect(typeof re === 'object' && re !== null, label('remainingEstimate must be an object')).toBe(true);
+      expect(typeof re.iso === 'string' && ISO_DURATION_RE.test(re.iso as string), label('remainingEstimate.iso must be a valid ISO 8601 duration')).toBe(true);
+
+      // Optional dueDate: ISO date string when present
+      if (t.dueDate !== undefined) {
+        expect(typeof t.dueDate === 'string' && ISO_DATE_RE.test(t.dueDate as string), label('dueDate must be an ISO date string')).toBe(true);
+      }
+
+      // Optional parentId: non-empty string when present
+      if (t.parentId !== undefined) {
+        expect(typeof t.parentId === 'string' && (t.parentId as string).length > 0, label('parentId must be a non-empty string')).toBe(true);
+      }
+
+      // Optional startDate: ISO date string when present
+      if (t.startDate !== undefined) {
+        expect(typeof t.startDate === 'string' && ISO_DATE_RE.test(t.startDate as string), label('startDate must be an ISO date string')).toBe(true);
+      }
+
+      // Optional completedAt: ISO 8601 datetime string when present
+      if (t.completedAt !== undefined) {
+        expect(typeof t.completedAt === 'string' && ISO_DATETIME_RE.test(t.completedAt as string), label('completedAt must be an ISO 8601 datetime')).toBe(true);
+      }
+    });
   });
 });
 

@@ -999,6 +999,25 @@ select.form-input    { cursor: pointer; }
 
 .duration-builder.hidden { display: none; }
 
+/* Hide submit button when .hidden is applied (e.g. in edit mode via TaskForm) */
+.btn-primary.hidden { display: none; }
+
+/* Created-at row in edit form */
+.form-created-at-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 2px;
+}
+
+.form-created-at-row.hidden { display: none; }
+
+.form-created-at-value {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Highlight when required value is missing */
 .duration-builder.duration-error .duration-num {
   border-color: var(--danger);
@@ -1037,3 +1056,129 @@ select.form-input    { cursor: pointer; }
   flex: 0 0 auto;
 }
 
+/* ============================================================
+   Edit Task Column (right-side retractable panel)
+   ============================================================ */
+.edit-task-column {
+  width: var(--tools-width);
+  min-width: var(--tools-width);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: width 0.25s ease, min-width 0.25s ease;
+  overflow: hidden;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+
+.edit-task-column.collapsed {
+  width: var(--tools-collapsed-width);
+  min-width: var(--tools-collapsed-width);
+}
+
+.edit-task-column.collapsed .edit-task-column-inner {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.edit-task-column-inner {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.2s;
+  padding-top: 40px;
+}
+
+.edit-column-toggle-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.edit-column-toggle-btn:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.edit-column-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.edit-column-title-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.edit-column-title-text {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.edit-column-content {
+  flex: 1;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.edit-column-placeholder {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 24px 8px;
+  opacity: 0.7;
+}
+
+.edit-column-save-btn {
+  width: 100%;
+}
+
+.edit-column-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+/* Task form inside the edit column – no extra box shadow */
+.edit-task-column .task-form {
+  box-shadow: none;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+/* Scrollbar for edit column */
+.edit-task-column-inner::-webkit-scrollbar { width: 4px; }
+.edit-task-column-inner::-webkit-scrollbar-track { background: transparent; }
+.edit-task-column-inner::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
