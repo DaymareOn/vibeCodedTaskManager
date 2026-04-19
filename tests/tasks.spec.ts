@@ -19,7 +19,7 @@
  *
  * Test suite 4 – Edit a task via the Timeline modal
  *   Verifies that clicking a task rect opens the edit form pre-filled
- *   and that saving changes updates the task in the Timeline.
+ *   and that auto-saving changes updates the task in the Timeline.
  *
  * Test suite 5 – Delete a task via the Timeline modal
  *   Verifies that deleting a task from the edit modal removes it from
@@ -52,6 +52,27 @@
  *   Pure Node.js test (no browser). Verifies that every app-specific
  *   mouse / keyboard interaction is present in the DEFAULT_BINDINGS of the
  *   keyboard help overlay with a non-empty description.
+ *
+ * Test suite 13 – I18N locale change updates all locale-sensitive component texts
+ *   Browser test. Verifies that switching between the en-US and fr-FR locales
+ *   (via the country select in the Tools column) immediately updates the text
+ *   of every locale-sensitive component: ToolsColumn section headers, FilterBar
+ *   status buttons and search placeholder, ImportExport button labels,
+ *   EditTaskColumn placeholder, KeyboardOverlay title, ConceptsOverlay title.
+ *
+ * Test suite 14 – Saveable component values persist across page reload
+ *   Verifies that each value that is written to localStorage is actually
+ *   restored after a full page reload:
+ *     1. Locale selection (user_locale key).
+ *     2. Help-key binding (user_keyboard_config key).
+ *     3. Task title edited via the auto-save mechanism (tasks_data key).
+ *
+ * Test suite 15 – Arrow key navigation between tasks by priority score
+ *   Verifies that when a task is open in the Edit column and keyboard focus
+ *   is NOT in a text field, pressing ↑ switches to the task with the next
+ *   higher priority score and pressing ↓ switches to the task with the next
+ *   lower priority score.  Also verifies that the navigation does nothing
+ *   when already at the top or bottom of the priority-sorted list.
  */
 
 import { test, expect } from '@playwright/test';
@@ -184,7 +205,7 @@ test.describe('Import / Export round-trip', () => {
   test('can import sampleTasks.json and tasks become visible', async ({ page }) => {
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser'),
-      page.click('button:has-text("Import tasks")'),
+      page.click('button:has-text("Import")'),
     ]);
     await fileChooser.setFiles(SAMPLE_TASKS_JSON);
 
@@ -211,7 +232,7 @@ test.describe('Import / Export round-trip', () => {
     // 1. Import sample tasks
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser'),
-      page.click('button:has-text("Import tasks")'),
+      page.click('button:has-text("Import")'),
     ]);
     await fileChooser.setFiles(SAMPLE_TASKS_JSON);
     page.once('dialog', (dialog) => dialog.accept());
@@ -223,7 +244,7 @@ test.describe('Import / Export round-trip', () => {
     // 2. Export and capture the downloaded file
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.click('button:has-text("Export tasks")'),
+      page.click('button:has-text("Export")'),
     ]);
 
     const exportedPath = await download.path();
@@ -326,8 +347,8 @@ test.describe('Edit a task via the Timeline modal', () => {
     await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
 
     await page.locator('.edit-task-column input[placeholder="Task title"]').fill('Driving licence renewed');
-    await page.click('button:has-text("Save Changes")');
 
+    // Auto-save is debounced at 400 ms; the Timeline re-renders automatically
     await expect(
       page.locator('.task-rect .task-title', { hasText: 'Driving licence renewed' }).first(),
     ).toBeVisible({ timeout: 5_000 });
@@ -447,7 +468,7 @@ test.describe('Filter bar', () => {
   });
 
   test('search filter shows only tasks whose title or description matches', async ({ page }) => {
-    await page.fill('input[placeholder="🔍 Search tasks…"]', 'dentist');
+    await page.fill('input[placeholder="Search tasks…"]', 'dentist');
 
     await expect(
       page.locator('.task-rect .task-title', { hasText: 'Book annual dentist check-up' }).first(),
@@ -478,11 +499,11 @@ test.describe('Filter bar', () => {
 
   test('clearing the search input restores all tasks', async ({ page }) => {
     // "electricity" matches only "Pay quarterly electricity bill"
-    await page.fill('input[placeholder="🔍 Search tasks…"]', 'electricity');
+    await page.fill('input[placeholder="Search tasks…"]', 'electricity');
     await expect(page.locator('.task-rect')).toHaveCount(1, { timeout: 3_000 });
 
     // Clear the search input
-    await page.fill('input[placeholder="🔍 Search tasks…"]', '');
+    await page.fill('input[placeholder="Search tasks…"]', '');
 
     // All 13 root-level tasks should be visible again
     await expect(page.locator('.task-rect')).toHaveCount(13, { timeout: 3_000 });
@@ -773,5 +794,500 @@ test.describe('F1 Overlay documentation coverage', () => {
           'Every app-specific interaction must have a meaningful default description.',
       ).toBe(true);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Helpers for i18n / locale tests
+// ---------------------------------------------------------------------------
+
+/**
+ * Switch the app locale via the country select in the Tools column.
+ * The country select is identified by the fact that its options have
+ * 2-letter country-code values (US, FR, GB …) rather than locale codes or
+ * currency codes.
+ */
+async function switchLocaleViaCountrySelect(
+  page: import('@playwright/test').Page,
+  countryCode: string,
+): Promise<void> {
+  await page.evaluate((code: string) => {
+    const selects = Array.from(
+      document.querySelectorAll<HTMLSelectElement>('.tools-column select'),
+    );
+    // Country select: first option value has exactly 2 characters (e.g. "US", "FR")
+    const countrySelect = selects.find(
+      (s) => s.options.length > 0 && s.options[0].value.length === 2,
+    );
+    if (!countrySelect) throw new Error('Country select not found in tools column');
+    countrySelect.value = code;
+    countrySelect.dispatchEvent(new Event('change', { bubbles: true }));
+  }, countryCode);
+}
+
+// ---------------------------------------------------------------------------
+// Suite 13 – I18N locale change updates all locale-sensitive component texts
+// ---------------------------------------------------------------------------
+
+/**
+ * Each locale-sensitive component registers an onLocaleChange() listener that
+ * re-renders its own text nodes without a page reload.  These tests verify
+ * that switching between en-US and fr-FR updates every such component
+ * immediately, and that switching back restores the original strings.
+ *
+ * Components covered:
+ *   • ToolsColumn (section headers, labels, button labels)
+ *   • FilterBar (search placeholder, status-filter button labels)
+ *   • ImportExport (Import / Export button labels)
+ *   • EditTaskColumn (column placeholder text when no task is open)
+ *   • KeyboardOverlay (panel title)
+ *   • ConceptsOverlay (panel title)
+ */
+test.describe('I18N locale change updates locale-sensitive component texts', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    // Start from a clean slate and explicitly force en-US so the baseline is
+    // consistent regardless of the CI machine's system locale.
+    await page.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem('user_locale', 'en-US');
+    });
+    await page.reload();
+    await page.waitForSelector('.tools-column', { timeout: 10_000 });
+  });
+
+  test('ToolsColumn section headers update when locale switches en-US → fr-FR → en-US', async ({
+    page,
+  }) => {
+    // ── Baseline: en-US ──────────────────────────────────────────────────────
+    await expect(
+      page.locator('.tools-section-header', { hasText: '🔍 Search & Filter' }),
+    ).toBeVisible();
+    await expect(
+      page.locator('.tools-section-header', { hasText: '📂 Import / Export' }),
+    ).toBeVisible();
+    await expect(
+      page.locator('.tools-section-header', { hasText: '🎨 Theme' }),
+    ).toBeVisible();
+
+    // ── Switch to fr-FR ───────────────────────────────────────────────────────
+    await switchLocaleViaCountrySelect(page, 'FR');
+
+    await expect(
+      page.locator('.tools-section-header', { hasText: '🔍 Recherche & Filtres' }),
+    ).toBeVisible({ timeout: 3_000 });
+    await expect(
+      page.locator('.tools-section-header', { hasText: '📂 Importer / Exporter' }),
+    ).toBeVisible({ timeout: 3_000 });
+    await expect(
+      page.locator('.tools-section-header', { hasText: '🎨 Thème' }),
+    ).toBeVisible({ timeout: 3_000 });
+
+    // ── Switch back to en-US ──────────────────────────────────────────────────
+    await switchLocaleViaCountrySelect(page, 'US');
+
+    await expect(
+      page.locator('.tools-section-header', { hasText: '🔍 Search & Filter' }),
+    ).toBeVisible({ timeout: 3_000 });
+    await expect(
+      page.locator('.tools-section-header', { hasText: '🎨 Theme' }),
+    ).toBeVisible({ timeout: 3_000 });
+  });
+
+  test('FilterBar status buttons and search placeholder update when locale switches', async ({
+    page,
+  }) => {
+    // ── Baseline: en-US ──────────────────────────────────────────────────────
+    await expect(page.locator('.status-btn-todo')).toContainText('To Do');
+    await expect(page.locator('.status-btn-in-progress')).toContainText('In Progress');
+    await expect(page.locator('.status-btn-done')).toContainText('Done');
+    await expect(page.locator('.status-btn-cancelled')).toContainText('Cancelled');
+    await expect(page.locator('input[placeholder="Search tasks…"]')).toBeVisible();
+
+    // ── Switch to fr-FR ───────────────────────────────────────────────────────
+    await switchLocaleViaCountrySelect(page, 'FR');
+
+    await expect(page.locator('.status-btn-todo')).toContainText('À faire', { timeout: 3_000 });
+    await expect(page.locator('.status-btn-in-progress')).toContainText('En cours', { timeout: 3_000 });
+    await expect(page.locator('.status-btn-done')).toContainText('Terminé', { timeout: 3_000 });
+    await expect(page.locator('.status-btn-cancelled')).toContainText('Annulé', { timeout: 3_000 });
+    await expect(
+      page.locator('input[placeholder="Rechercher des tâches…"]'),
+    ).toBeVisible({ timeout: 3_000 });
+
+    // ── Switch back to en-US ──────────────────────────────────────────────────
+    await switchLocaleViaCountrySelect(page, 'US');
+
+    await expect(page.locator('.status-btn-todo')).toContainText('To Do', { timeout: 3_000 });
+    await expect(page.locator('input[placeholder="Search tasks…"]')).toBeVisible({ timeout: 3_000 });
+  });
+
+  test('Import / Export button labels update when locale switches', async ({ page }) => {
+    // ── Baseline: en-US ──────────────────────────────────────────────────────
+    await expect(page.locator('button:has-text("Import")')).toBeVisible();
+    await expect(page.locator('button:has-text("Export")')).toBeVisible();
+
+    // ── Switch to fr-FR ───────────────────────────────────────────────────────
+    await switchLocaleViaCountrySelect(page, 'FR');
+
+    await expect(page.locator('button:has-text("Importer")')).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('button:has-text("Exporter")')).toBeVisible({ timeout: 3_000 });
+
+    // ── Switch back to en-US ──────────────────────────────────────────────────
+    await switchLocaleViaCountrySelect(page, 'US');
+
+    await expect(page.locator('button:has-text("Import")')).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('button:has-text("Export")')).toBeVisible({ timeout: 3_000 });
+  });
+
+  test('EditTaskColumn placeholder text updates when locale switches', async ({ page }) => {
+    // Expand the edit column so the placeholder text is visible
+    await page.locator('.edit-column-toggle-btn').click();
+
+    // ── Baseline: en-US ──────────────────────────────────────────────────────
+    await expect(
+      page.locator('.edit-column-placeholder', { hasText: '← Click a task to edit it' }),
+    ).toBeVisible({ timeout: 3_000 });
+
+    // ── Switch to fr-FR ───────────────────────────────────────────────────────
+    await switchLocaleViaCountrySelect(page, 'FR');
+
+    await expect(
+      page.locator('.edit-column-placeholder', {
+        hasText: '← Cliquez sur une tâche pour la modifier',
+      }),
+    ).toBeVisible({ timeout: 3_000 });
+
+    // ── Switch back to en-US ──────────────────────────────────────────────────
+    await switchLocaleViaCountrySelect(page, 'US');
+
+    await expect(
+      page.locator('.edit-column-placeholder', { hasText: '← Click a task to edit it' }),
+    ).toBeVisible({ timeout: 3_000 });
+  });
+
+  test('KeyboardOverlay title updates when locale switches', async ({ page }) => {
+    // Open the keyboard overlay via the button in the tools column
+    await page.click('button:has-text("Open keyboard overlay")');
+    await expect(page.locator('.ko-panel')).toBeVisible({ timeout: 5_000 });
+
+    // ── Baseline: en-US ──────────────────────────────────────────────────────
+    await expect(
+      page.locator('.ko-panel', { hasText: '⌨ Keyboard & Mouse Reference' }),
+    ).toBeVisible();
+
+    // Close the overlay
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.ko-panel')).not.toBeVisible({ timeout: 3_000 });
+
+    // ── Switch to fr-FR ───────────────────────────────────────────────────────
+    await switchLocaleViaCountrySelect(page, 'FR');
+
+    // Reopen in French
+    await page.click('button:has-text("Ouvrir le panneau clavier")');
+    await expect(
+      page.locator('.ko-panel', { hasText: '⌨ Référence clavier & souris' }),
+    ).toBeVisible({ timeout: 3_000 });
+
+    await page.keyboard.press('Escape');
+  });
+
+  test('ConceptsOverlay title updates when locale switches', async ({ page }) => {
+    // Open the concepts overlay via the button in the tools column
+    await page.click('button:has-text("Open concepts overlay")');
+    await expect(page.locator('.co-panel')).toBeVisible({ timeout: 5_000 });
+
+    // ── Baseline: en-US ──────────────────────────────────────────────────────
+    await expect(
+      page.locator('.co-panel', { hasText: '💡 Concepts & Glossary' }),
+    ).toBeVisible();
+
+    // Close
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.co-panel')).not.toBeVisible({ timeout: 3_000 });
+
+    // ── Switch to fr-FR ───────────────────────────────────────────────────────
+    await switchLocaleViaCountrySelect(page, 'FR');
+
+    await page.click('button:has-text("Ouvrir le glossaire")');
+    await expect(
+      page.locator('.co-panel', { hasText: '💡 Concepts & Glossaire' }),
+    ).toBeVisible({ timeout: 3_000 });
+
+    await page.keyboard.press('Escape');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite 14 – Saveable component values persist across page reload
+// ---------------------------------------------------------------------------
+
+/**
+ * Verifies that each component whose value is saved to localStorage actually
+ * persists its value after a full page reload.
+ *
+ * Covered saves:
+ *   1. Locale selection  → localStorage key: user_locale
+ *   2. Help-key binding  → localStorage key: user_keyboard_config
+ *   3. Task title edit   → localStorage key: tasks_data (via auto-save)
+ */
+test.describe('Saveable component values persist across page reload', () => {
+  test('locale selection (fr-FR) persists after page reload', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem('user_locale', 'en-US');
+    });
+    await page.reload();
+    await page.waitForSelector('.tools-column', { timeout: 10_000 });
+
+    // Switch to French via the country select
+    await switchLocaleViaCountrySelect(page, 'FR');
+
+    // Verify the locale changed live (French text visible)
+    await expect(
+      page.locator('.tools-section-header', { hasText: '🔍 Recherche & Filtres' }),
+    ).toBeVisible({ timeout: 3_000 });
+
+    // Reload and verify the locale was persisted
+    await page.reload();
+    await page.waitForSelector('.tools-column', { timeout: 10_000 });
+
+    await expect(
+      page.locator('.tools-section-header', { hasText: '🔍 Recherche & Filtres' }),
+    ).toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('.status-btn-todo')).toContainText('À faire', { timeout: 3_000 });
+  });
+
+  test('help-key change persists after page reload', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await page.waitForSelector('.tools-column', { timeout: 10_000 });
+
+    // Click the help-key input and press F9 (safe non-conflicting key)
+    await page.click('input.tools-help-key-input');
+    await page.keyboard.press('F9');
+
+    // Verify the input updated immediately
+    await expect(page.locator('input.tools-help-key-input').first()).toHaveValue('F9');
+
+    // Reload and verify it persisted
+    await page.reload();
+    await page.waitForSelector('.tools-column', { timeout: 10_000 });
+    await expect(page.locator('input.tools-help-key-input').first()).toHaveValue('F9');
+  });
+
+  test('task title auto-save persists after page reload', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    // Wait for the seeded sample tasks to be visible
+    await page.waitForSelector('.task-rect', { timeout: 10_000 });
+
+    // Open a task in the edit column
+    await page
+      .locator('.task-rect', {
+        has: page.locator('.task-title', { hasText: 'Renew driving licence' }),
+      })
+      .first()
+      .click();
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, {
+      timeout: 5_000,
+    });
+
+    // Change the title – auto-save fires after a 400 ms debounce
+    await page.locator('.edit-task-column input[placeholder="Task title"]').fill(
+      'Driving licence – auto-saved',
+    );
+
+    // Wait for the auto-save debounce (400 ms) plus a small buffer
+    await page.waitForTimeout(600);
+
+    // Reload and verify the title survived the reload
+    await page.reload();
+    await page.waitForSelector('.task-rect', { timeout: 10_000 });
+
+    await expect(
+      page.locator('.task-rect .task-title', { hasText: 'Driving licence – auto-saved' }).first(),
+    ).toBeVisible({ timeout: 5_000 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite 15 – Arrow key navigation between tasks by priority score
+// ---------------------------------------------------------------------------
+
+/**
+ * When a task is open in the Edit Task column and keyboard focus is NOT in a
+ * text field, pressing ↑ switches to the task with the next higher priority
+ * score and pressing ↓ switches to the task with the next lower priority
+ * score.
+ *
+ * Task priority formula (see src/utils/priority.ts):
+ *   Score = V              when R ≤ 1  (deadline already past or just reachable)
+ *   Score = V × e^(−k(R−1))  when R > 1  (more time than needed)
+ *
+ * Test setup:
+ *   • "High Priority Task"  – value = 5 000 €, deadline = 2020-01-01 (past)
+ *       T = 0  →  R = 0 ≤ 1  →  Score = 5 000
+ *   • "Low Priority Task"   – value = 100 €, deadline = 2099-12-31 (far future)
+ *       R >> 1  →  Score ≈ 0
+ *
+ * Sorted descending: [High Priority (5000), Low Priority (≈0)]
+ */
+test.describe('Arrow key navigates between tasks by priority score', () => {
+  /** Two tasks whose relative priority order is deterministic regardless of when the tests run. */
+  const TWO_PRIORITY_TASKS = [
+    {
+      id: 'test-prio-high',
+      title: 'High Priority Task',
+      description: '',
+      status: 'todo',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      tags: [],
+      taskValue: { type: 'direct', amount: { amount: 5000, currency: 'EUR' } },
+      targetDelivery: '2020-01-01', // past deadline → T=0 → R≤1 → score=5000
+      remainingEstimate: { iso: 'P1D' },
+    },
+    {
+      id: 'test-prio-low',
+      title: 'Low Priority Task',
+      description: '',
+      status: 'todo',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      tags: [],
+      taskValue: { type: 'direct', amount: { amount: 100, currency: 'EUR' } },
+      targetDelivery: '2099-12-31', // far future → R≫1 → score≈0
+      remainingEstimate: { iso: 'P1D' },
+    },
+  ];
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    // Inject the two deterministic priority tasks directly into localStorage
+    await page.evaluate((tasks) => {
+      localStorage.setItem('tasks_data', JSON.stringify(tasks));
+      localStorage.setItem('tasks_seeded', 'true');
+    }, TWO_PRIORITY_TASKS);
+    await page.reload();
+    await page.waitForSelector('.task-rect', { timeout: 10_000 });
+  });
+
+  /**
+   * Blur any currently focused element (input, button, etc.) so the global
+   * keydown handler treats the key event as "not in a text field".
+   */
+  async function blurFocus(page: import('@playwright/test').Page): Promise<void> {
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  }
+
+  test('ArrowUp navigates from the lower-priority task to the higher-priority task', async ({
+    page,
+  }) => {
+    // Open the low-priority task in the edit column
+    await page
+      .locator('.task-rect', {
+        has: page.locator('.task-title', { hasText: 'Low Priority Task' }),
+      })
+      .first()
+      .click();
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, {
+      timeout: 5_000,
+    });
+    // Verify the correct task is loaded
+    await expect(
+      page.locator('.edit-task-column input[placeholder="Task title"]'),
+    ).toHaveValue('Low Priority Task');
+
+    // Blur focus so the arrow key is handled as a navigation shortcut
+    await blurFocus(page);
+
+    // Press ↑ → should navigate to the higher-priority task
+    await page.keyboard.press('ArrowUp');
+
+    await expect(
+      page.locator('.edit-task-column input[placeholder="Task title"]'),
+    ).toHaveValue('High Priority Task', { timeout: 3_000 });
+  });
+
+  test('ArrowDown navigates from the higher-priority task to the lower-priority task', async ({
+    page,
+  }) => {
+    // Open the high-priority task in the edit column
+    await page
+      .locator('.task-rect', {
+        has: page.locator('.task-title', { hasText: 'High Priority Task' }),
+      })
+      .first()
+      .click();
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, {
+      timeout: 5_000,
+    });
+    await expect(
+      page.locator('.edit-task-column input[placeholder="Task title"]'),
+    ).toHaveValue('High Priority Task');
+
+    await blurFocus(page);
+
+    // Press ↓ → should navigate to the lower-priority task
+    await page.keyboard.press('ArrowDown');
+
+    await expect(
+      page.locator('.edit-task-column input[placeholder="Task title"]'),
+    ).toHaveValue('Low Priority Task', { timeout: 3_000 });
+  });
+
+  test('ArrowUp does nothing when already at the highest-priority task', async ({ page }) => {
+    // Open the highest-priority task
+    await page
+      .locator('.task-rect', {
+        has: page.locator('.task-title', { hasText: 'High Priority Task' }),
+      })
+      .first()
+      .click();
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, {
+      timeout: 5_000,
+    });
+    await expect(
+      page.locator('.edit-task-column input[placeholder="Task title"]'),
+    ).toHaveValue('High Priority Task');
+
+    await blurFocus(page);
+
+    // Press ↑ – no task above this one; the edit column must stay on the same task
+    await page.keyboard.press('ArrowUp');
+
+    // Give the handler time to (not) navigate, then assert unchanged
+    await expect(
+      page.locator('.edit-task-column input[placeholder="Task title"]'),
+    ).toHaveValue('High Priority Task');
+  });
+
+  test('ArrowDown does nothing when already at the lowest-priority task', async ({ page }) => {
+    // Open the lowest-priority task
+    await page
+      .locator('.task-rect', {
+        has: page.locator('.task-title', { hasText: 'Low Priority Task' }),
+      })
+      .first()
+      .click();
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, {
+      timeout: 5_000,
+    });
+    await expect(
+      page.locator('.edit-task-column input[placeholder="Task title"]'),
+    ).toHaveValue('Low Priority Task');
+
+    await blurFocus(page);
+
+    // Press ↓ – no task below this one; the edit column must stay on the same task
+    await page.keyboard.press('ArrowDown');
+
+    await expect(
+      page.locator('.edit-task-column input[placeholder="Task title"]'),
+    ).toHaveValue('Low Priority Task');
   });
 });
