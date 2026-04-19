@@ -15,8 +15,8 @@ interface Migration {
 }
 
 /**
- * Ordered list of migrations.  Each entry carries tasks from one version
- * to the next.  Add a new entry here whenever DATA_VERSION is bumped.
+ * No migrations defined yet – this is the first versioned release (v0.1.0).
+ * Add a new entry here whenever DATA_VERSION is bumped.
  *
  * Example (uncomment when needed):
  *   {
@@ -26,7 +26,12 @@ interface Migration {
  *   },
  */
 const MIGRATIONS: Migration[] = [
-  // No migrations yet – first versioned release.
+  // First versioned release (v0.1.0). Future migrations go here, e.g.:
+  //   {
+  //     fromVersion: '0.1.0',
+  //     toVersion:   '0.2.0',
+  //     up: (tasks) => tasks.map((t) => ({ newField: 'default', ...(t as object) })),
+  //   },
 ];
 
 /** Numeric semver comparison (returns negative / 0 / positive). */
