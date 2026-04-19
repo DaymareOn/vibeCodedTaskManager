@@ -1,5 +1,6 @@
 import type { Task, Duration, TaskStatus, TaskValue } from '../types/Task';
 import { DOM } from '../utils/dom';
+import { t } from '../utils/i18n';
 
 type TaskFormData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
 
@@ -59,11 +60,11 @@ const CURRENCIES: Array<{ code: string; name: string }> = [
 ];
 
 /** Status toggle button options used in the edit form. */
-const STATUS_OPTIONS: Array<{ value: TaskStatus; label: string; cssClass: string }> = [
-  { value: 'todo',        label: '⬜ To Do',      cssClass: 'status-btn-todo' },
-  { value: 'in-progress', label: '🔄 In Progress', cssClass: 'status-btn-in-progress' },
-  { value: 'done',        label: '✅ Done',        cssClass: 'status-btn-done' },
-  { value: 'cancelled',   label: '❌ Cancelled',   cssClass: 'status-btn-cancelled' },
+const STATUS_OPTIONS: Array<{ value: TaskStatus; labelKey: string; cssClass: string }> = [
+  { value: 'todo',        labelKey: 'form.statusTodo',        cssClass: 'status-btn-todo' },
+  { value: 'in-progress', labelKey: 'form.statusInProgress',  cssClass: 'status-btn-in-progress' },
+  { value: 'done',        labelKey: 'form.statusDone',        cssClass: 'status-btn-done' },
+  { value: 'cancelled',   labelKey: 'form.statusCancelled',   cssClass: 'status-btn-cancelled' },
 ];
 
 /** Create a currency <select> pre-filled with ISO 4217 codes */
@@ -224,31 +225,33 @@ function createDurationBuilder(initialIso = ''): {
 
 /**
  * Build a task form element.
- * @param onSubmit  Called with the form data when the user submits.
+ * @param onSubmit  Called with the form data when the user submits (or on every change in autoSave mode).
  * @param existingTask  When provided, the form is pre-filled for editing.
  * @param submitLabel  Label for the submit button.
  * @param prefillStartDate  Optional ISO date to pre-fill the start date when creating.
+ * @param autoSave  When true, call onSubmit on every field change (for edit mode).
  */
 export const TaskForm = (
   onSubmit: (task: TaskFormData) => void,
   existingTask?: Task,
-  submitLabel = 'Add Task',
+  submitLabel = '',
   prefillStartDate?: string,
+  autoSave = false,
 ): TaskFormResult => {
   const form = DOM.create('form', 'task-form') as HTMLFormElement;
 
   const titleInput = DOM.create('input', 'form-input') as HTMLInputElement;
   titleInput.type = 'text';
-  titleInput.placeholder = 'Task title';
+  titleInput.placeholder = t('form.titlePlaceholder');
   titleInput.required = true;
   if (existingTask) titleInput.value = existingTask.title;
 
   const descriptionInput = DOM.create('textarea', 'form-input') as HTMLTextAreaElement;
-  descriptionInput.placeholder = 'Task description';
+  descriptionInput.placeholder = t('form.descriptionPlaceholder');
   descriptionInput.rows = 3;
   if (existingTask) descriptionInput.value = existingTask.description;
 
-  const dueDateLabel = DOM.create('label', 'form-label', 'Due date (optional)');
+  const dueDateLabel = DOM.create('label', 'form-label', t('form.dueDate'));
   const dueDateInput = DOM.create('input', 'form-input') as HTMLInputElement;
   dueDateInput.type = 'date';
   if (existingTask?.dueDate) dueDateInput.value = existingTask.dueDate;
@@ -256,7 +259,7 @@ export const TaskForm = (
   // In edit mode, display the creation date (read-only) for reference.
   const createdAtRow = DOM.create('div', `form-created-at-row${existingTask ? '' : ' hidden'}`);
   if (existingTask) {
-    const createdAtLabel = DOM.create('span', 'form-label', 'Created');
+    const createdAtLabel = DOM.create('span', 'form-label', t('form.created'));
     const createdAtValue = DOM.create(
       'span',
       'form-created-at-value',
@@ -267,22 +270,22 @@ export const TaskForm = (
 
   const tagsInput = DOM.create('input', 'form-input') as HTMLInputElement;
   tagsInput.type = 'text';
-  tagsInput.placeholder = 'Tags (comma-separated)';
+  tagsInput.placeholder = t('form.tags');
   if (existingTask) tagsInput.value = existingTask.tags.join(', ');
 
   // --- Priority Score section (required) ---
   const scoreSection = DOM.create('div', 'form-score-section');
-  const scoreSectionTitle = DOM.create('div', 'form-score-title', '⚡ Priority Score');
+  const scoreSectionTitle = DOM.create('div', 'form-score-title', t('form.priorityScore'));
 
   // Value type toggle
-  const valueTypeLabel = DOM.create('label', 'form-label', 'Value type');
+  const valueTypeLabel = DOM.create('label', 'form-label', t('form.valueType'));
   const initialValueType = existingTask?.taskValue?.type === 'event' ? 'event' : 'direct';
   let valueType = initialValueType;
 
   const valueTypeToggle = createToggle(
     [
-      { value: 'direct', label: '💰 Direct amount' },
-      { value: 'event', label: '📊 Event (cost × probability)' },
+      { value: 'direct', label: t('form.valueDirect') },
+      { value: 'event', label: t('form.valueEvent') },
     ],
     initialValueType,
     (v) => { valueType = v; showValueFields(); },
@@ -294,7 +297,7 @@ export const TaskForm = (
   directAmount.type = 'number';
   directAmount.min = '0';
   directAmount.step = '0.01';
-  directAmount.placeholder = 'Amount (e.g. 1500)';
+  directAmount.placeholder = t('form.amount');
   const directCurrencySelect = createCurrencySelect(
     existingTask?.taskValue?.type === 'direct' ? existingTask.taskValue.amount.currency : 'EUR',
   );
@@ -310,7 +313,7 @@ export const TaskForm = (
   unitCostAmount.type = 'number';
   unitCostAmount.min = '0';
   unitCostAmount.step = '0.01';
-  unitCostAmount.placeholder = 'Unit cost (e.g. 15000)';
+  unitCostAmount.placeholder = t('form.unitCost');
   const unitCostCurrencySelect = createCurrencySelect(
     existingTask?.taskValue?.type === 'event' ? existingTask.taskValue.unitCost.currency : 'EUR',
   );
@@ -319,10 +322,10 @@ export const TaskForm = (
   probabilityInput.min = '0';
   probabilityInput.max = '1';
   probabilityInput.step = '0.01';
-  probabilityInput.placeholder = 'Probability (0–1, e.g. 0.05)';
+  probabilityInput.placeholder = t('form.probability');
 
   // Period duration builder
-  const eventPeriodLabel = DOM.create('label', 'form-label', 'Period');
+  const eventPeriodLabel = DOM.create('label', 'form-label', t('form.period'));
   const periodBuilder = createDurationBuilder(
     existingTask?.taskValue?.type === 'event' ? existingTask.taskValue.period.iso : '',
   );
@@ -346,15 +349,15 @@ export const TaskForm = (
   showValueFields();
 
   // Target delivery toggle
-  const deliveryLabel = DOM.create('label', 'form-label', 'Target delivery');
+  const deliveryLabel = DOM.create('label', 'form-label', t('form.targetDelivery'));
   const initialDeliveryType =
     existingTask && typeof existingTask.targetDelivery !== 'string' ? 'duration' : 'date';
   let deliveryType = initialDeliveryType;
 
   const deliveryToggle = createToggle(
     [
-      { value: 'date',     label: '📅 Fixed date' },
-      { value: 'duration', label: '⏱ Duration from now' },
+      { value: 'date',     label: t('form.fixedDate') },
+      { value: 'duration', label: t('form.durationFromNow') },
     ],
     initialDeliveryType,
     (v) => { deliveryType = v; showDeliveryFields(); },
@@ -385,31 +388,32 @@ export const TaskForm = (
   showDeliveryFields();
 
   // Remaining estimate duration builder
-  const estimateLabel = DOM.create('label', 'form-label', 'Remaining estimate');
+  const estimateLabel = DOM.create('label', 'form-label', t('form.remainingEstimate'));
   const estimateBuilder = createDurationBuilder(
     existingTask?.remainingEstimate ? existingTask.remainingEstimate.iso : '',
   );
 
   // Status selector – toggle buttons, only shown when editing
   let currentStatus: TaskStatus = existingTask ? existingTask.status : 'todo';
-  const statusLabelEl = DOM.create('label', `form-label${existingTask ? '' : ' hidden'}`, 'Status');
+  const statusLabelEl = DOM.create('label', `form-label${existingTask ? '' : ' hidden'}`, t('form.status'));
   const statusButtonsRow = DOM.create('div', `status-filter-buttons${existingTask ? '' : ' hidden'}`);
-  STATUS_OPTIONS.forEach(({ value, label, cssClass }) => {
+  STATUS_OPTIONS.forEach(({ value, labelKey, cssClass }) => {
     const btn = DOM.create('button', `status-btn ${cssClass}${value === currentStatus ? ' active' : ''}`) as HTMLButtonElement;
     btn.type = 'button';
-    btn.textContent = label;
+    btn.textContent = t(labelKey);
     btn.dataset.value = value;
     btn.addEventListener('click', () => {
       currentStatus = value;
       statusButtonsRow.querySelectorAll<HTMLElement>('.status-btn').forEach((b) => {
         b.classList.toggle('active', b.dataset.value === value);
       });
+      if (autoSave) doSubmit();
     });
     DOM.append(statusButtonsRow, btn);
   });
 
   // Start date field
-  const startDateLabel = DOM.create('label', 'form-label', 'Start date (optional)');
+  const startDateLabel = DOM.create('label', 'form-label', t('form.startDate'));
   const startDateInput = DOM.create('input', 'form-input') as HTMLInputElement;
   startDateInput.type = 'date';
   if (existingTask?.startDate) {
@@ -429,10 +433,10 @@ export const TaskForm = (
     estimateLabel, estimateBuilder.element,
   );
 
-  const submitBtn = DOM.create('button', 'btn-primary', submitLabel);
+  const submitBtn = DOM.create('button', 'btn-primary', submitLabel || t('form.addTask'));
   (submitBtn as HTMLButtonElement).type = 'submit';
-  // In edit mode the submit button is hidden; saving happens via save()
-  if (existingTask) submitBtn.classList.add('hidden');
+  // In edit mode (autoSave or existingTask) the submit button is hidden
+  if (existingTask || autoSave) submitBtn.classList.add('hidden');
 
   /** Validate form fields, call onSubmit if valid. Returns true on success. */
   const doSubmit = (): boolean => {
@@ -531,6 +535,44 @@ export const TaskForm = (
     e.preventDefault();
     doSubmit();
   });
+
+  // ---- Auto-save listeners (edit mode) ----
+  if (autoSave) {
+    let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleAutoSave = (): void => {
+      if (autoSaveTimer !== null) clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => { doSubmit(); autoSaveTimer = null; }, 400);
+    };
+
+    // Text & textarea inputs: debounced on input
+    titleInput.addEventListener('input', scheduleAutoSave);
+    descriptionInput.addEventListener('input', scheduleAutoSave);
+    tagsInput.addEventListener('input', scheduleAutoSave);
+
+    // Date / number inputs: save on change
+    const changeFields: HTMLElement[] = [
+      dueDateInput, directAmount, directCurrencySelect, unitCostAmount,
+      unitCostCurrencySelect, probabilityInput, deliveryDateInput, startDateInput,
+    ];
+    changeFields.forEach((el) => el.addEventListener('change', scheduleAutoSave));
+
+    // Duration builder inputs
+    estimateBuilder.element.addEventListener('change', scheduleAutoSave);
+    periodBuilder.element.addEventListener('change', scheduleAutoSave);
+    deliveryDurationBuilder.element.addEventListener('change', scheduleAutoSave);
+
+    // Value-type and delivery-type toggles: handled by their onChange callbacks
+    const origValueTypeFn = valueTypeToggle.element.dataset._origOnChange;
+    void origValueTypeFn; // no-op; handled in toggle callbacks above
+
+    // Wrap value/delivery type toggle onChange to also auto-save
+    valueTypeToggle.element.querySelectorAll<HTMLElement>('.toggle-btn').forEach((btn) => {
+      btn.addEventListener('click', scheduleAutoSave);
+    });
+    deliveryToggle.element.querySelectorAll<HTMLElement>('.toggle-btn').forEach((btn) => {
+      btn.addEventListener('click', scheduleAutoSave);
+    });
+  }
 
   DOM.append(
     form,

@@ -1657,3 +1657,306 @@ select.form-input    { cursor: pointer; }
 .co-panel::-webkit-scrollbar { width: 4px; }
 .co-panel::-webkit-scrollbar-track { background: transparent; }
 .co-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ============================================================
+   Concepts Overlay — Visual Layout (F2)
+   ============================================================ */
+/* The panel is wider in visual mode */
+.co-panel.co-panel-visual {
+  max-width: 1200px;
+  padding: 1.2rem 1.4rem;
+}
+
+/* Main visual layout: left cards | mockup | right cards */
+.co-visual-layout {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-height: 300px;
+}
+
+/* Side card columns */
+.co-side-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 190px;
+  max-width: 210px;
+  flex-shrink: 0;
+}
+
+/* Bottom cards row */
+.co-bottom-cards {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.co-bottom-cards .co-card {
+  flex: 1;
+  min-width: 150px;
+}
+
+/* Visual-mode card: no pointer/edit cursor */
+.co-card.co-card-visual {
+  cursor: default;
+  font-size: 0.72rem;
+  padding: 8px 10px;
+}
+.co-card.co-card-visual:hover {
+  border-color: var(--primary);
+  background: var(--primary-muted);
+}
+
+/* ---- App Mockup ---- */
+.co-mockup-wrapper {
+  flex: 1;
+  position: relative;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* SVG overlay for arrows */
+.co-arrows-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* The app mockup scaled at 50% */
+.co-app-mockup {
+  display: flex;
+  width: 600px;
+  height: 260px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: var(--shadow-lg);
+  flex-shrink: 0;
+  transform: scale(0.85);
+  transform-origin: center center;
+}
+
+/* Tools panel mockup */
+.co-mock-tools {
+  width: 110px;
+  min-width: 110px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+}
+
+.co-mock-tools-title {
+  height: 12px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  margin-bottom: 2px;
+}
+
+.co-mock-filter {
+  height: 8px;
+  background: var(--primary-muted);
+  border-radius: 3px;
+  opacity: 0.7;
+}
+
+.co-mock-section {
+  height: 24px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  margin-top: 4px;
+}
+
+/* Timeline mockup */
+.co-mock-timeline {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.co-mock-ruler {
+  height: 20px;
+  background: var(--ruler-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.co-mock-scrubber {
+  height: 8px;
+  background: var(--ruler-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.co-mock-body {
+  flex: 1;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.co-mock-bar {
+  height: 14px;
+  border-radius: 3px;
+}
+.co-mock-bar-0 { background: var(--task-todo); }
+.co-mock-bar-1 { background: var(--task-in-progress); }
+.co-mock-bar-2 { background: var(--task-done); }
+.co-mock-bar-3 { background: var(--task-cancelled); }
+
+/* Edit column mockup */
+.co-mock-edit {
+  width: 100px;
+  min-width: 100px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+}
+
+.co-mock-edit-title {
+  height: 12px;
+  background: var(--primary-muted);
+  border-radius: 3px;
+  margin-bottom: 2px;
+}
+
+.co-mock-field {
+  height: 10px;
+  background: var(--surface-2);
+  border-radius: 3px;
+}
+
+.co-mock-field-short {
+  width: 60%;
+}
+
+/* ============================================================
+   Keyboard Overlay — Graphical Mouse (F1)
+   ============================================================ */
+
+/* Unused keys are transparent */
+.ko-key.ko-key-unused {
+  opacity: 0.4;
+}
+
+/* Keyboard section (contains the keyboard grid + combos) */
+.ko-kb-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Mouse graphic wrapper */
+.ko-mouse-graphic-wrapper {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* SVG mouse shape */
+.ko-mouse-svg {
+  width: 100px;
+  height: 150px;
+  flex-shrink: 0;
+}
+
+.ko-mouse-body {
+  fill: var(--surface-2);
+  stroke: var(--border);
+  stroke-width: 2;
+}
+
+.ko-mouse-left,
+.ko-mouse-right {
+  fill: var(--surface-2);
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: fill 0.15s;
+  cursor: pointer;
+}
+.ko-mouse-left:hover  { fill: var(--primary-muted); stroke: var(--primary); }
+.ko-mouse-right:hover { fill: var(--primary-muted); stroke: var(--primary); }
+
+.ko-mouse-middle {
+  fill: var(--text-muted);
+  stroke: var(--border);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.ko-mouse-divider {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+/* Mouse action labels */
+.ko-mouse-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.ko-mouse-label-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.ko-mouse-part-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  min-width: 110px;
+}
+
+/* Trackpad section */
+.ko-trackpad-section,
+.ko-touch-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ko-trackpad-graphic {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Locale select in tools column */
+.tools-locale-select {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 3px 5px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  max-width: 160px;
+}
+
+.tools-locale-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+

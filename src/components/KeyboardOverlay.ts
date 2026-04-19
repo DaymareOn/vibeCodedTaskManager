@@ -1,5 +1,7 @@
 import { DOM } from '../utils/dom';
 import { KeyboardConfigManager, DEFAULT_BINDINGS, DEFAULT_HELP_KEY } from '../utils/keyboardConfig';
+import { t, onLocaleChange } from '../utils/i18n';
+import { getInputDevice, onInputDeviceChange, type InputDevice } from '../utils/deviceDetect';
 
 // ─── Key layout definitions ──────────────────────────────────────────────────
 // Each row is an array of [label, bindingId, widthMultiplier?]
@@ -59,7 +61,154 @@ function buildKey(label: string, bindingId: string, widthUnits: number): HTMLEle
   const keyLabel = DOM.create('span', 'ko-key-label', label);
   const desc     = DOM.create('span', 'ko-key-desc', KeyboardConfigManager.getBinding(bindingId));
   DOM.append(key, keyLabel, desc);
+
+  // Dim keys with no binding
+  if (!KeyboardConfigManager.getBinding(bindingId)) {
+    key.classList.add('ko-key-unused');
+  }
+
   return key;
+}
+
+// ─── Graphical mouse SVG builder ─────────────────────────────────────────────
+function buildMouseGraphic(): HTMLElement {
+  const wrapper = DOM.create('div', 'ko-mouse-graphic-wrapper');
+
+  // SVG mouse shape
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'ko-mouse-svg');
+  svg.setAttribute('viewBox', '0 0 120 180');
+  svg.setAttribute('aria-hidden', 'true');
+
+  // Mouse body
+  const body = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  body.setAttribute('x', '10');
+  body.setAttribute('y', '50');
+  body.setAttribute('width', '100');
+  body.setAttribute('height', '120');
+  body.setAttribute('rx', '50');
+  body.setAttribute('ry', '50');
+  body.setAttribute('class', 'ko-mouse-body');
+
+  // Left button
+  const leftBtn = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  leftBtn.setAttribute('d', 'M 10,50 Q 10,20 60,15 L 60,75 L 10,75 Z');
+  leftBtn.setAttribute('class', 'ko-mouse-left');
+  leftBtn.setAttribute('data-binding', 'mouse:left');
+
+  // Right button
+  const rightBtn = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  rightBtn.setAttribute('d', 'M 110,50 Q 110,20 60,15 L 60,75 L 110,75 Z');
+  rightBtn.setAttribute('class', 'ko-mouse-right');
+  rightBtn.setAttribute('data-binding', 'mouse:right');
+
+  // Middle button / scroll wheel
+  const middleBtn = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  middleBtn.setAttribute('x', '48');
+  middleBtn.setAttribute('y', '20');
+  middleBtn.setAttribute('width', '24');
+  middleBtn.setAttribute('height', '40');
+  middleBtn.setAttribute('rx', '12');
+  middleBtn.setAttribute('class', 'ko-mouse-middle');
+  middleBtn.setAttribute('data-binding', 'mouse:middle');
+
+  // Dividing line
+  const divLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  divLine.setAttribute('x1', '60');
+  divLine.setAttribute('y1', '15');
+  divLine.setAttribute('x2', '60');
+  divLine.setAttribute('y2', '75');
+  divLine.setAttribute('class', 'ko-mouse-divider');
+
+  DOM.append(svg as unknown as HTMLElement,
+    body as unknown as HTMLElement,
+    leftBtn as unknown as HTMLElement,
+    rightBtn as unknown as HTMLElement,
+    middleBtn as unknown as HTMLElement,
+    divLine as unknown as HTMLElement,
+  );
+
+  // Labels for mouse parts
+  const labels = DOM.create('div', 'ko-mouse-labels');
+
+  const partsData: Array<{ binding: string; label: string; cssClass: string }> = [
+    { binding: 'mouse:left',        label: '← Left',       cssClass: 'ko-mlabel-left'   },
+    { binding: 'mouse:middle',      label: '⊙ Middle',     cssClass: 'ko-mlabel-middle' },
+    { binding: 'mouse:right',       label: 'Right →',      cssClass: 'ko-mlabel-right'  },
+    { binding: 'mouse:wheel-up',    label: '↑ Scroll up',  cssClass: 'ko-mlabel-wheel'  },
+    { binding: 'mouse:wheel-down',  label: '↓ Scroll down',cssClass: 'ko-mlabel-wheel'  },
+    { binding: 'mouse:wheel-left',  label: '← Scroll left',cssClass: 'ko-mlabel-wheel'  },
+    { binding: 'mouse:wheel-right', label: '→ Scroll right',cssClass: 'ko-mlabel-wheel' },
+  ];
+
+  partsData.forEach(({ binding, label, cssClass }) => {
+    const row = DOM.create('div', `ko-mouse-label-row ${cssClass}`);
+    row.dataset.binding = binding;
+    const lbl  = DOM.create('span', 'ko-mouse-part-label', label);
+    const desc = DOM.create('span', 'ko-key-desc', KeyboardConfigManager.getBinding(binding));
+    DOM.append(row, lbl, desc);
+    DOM.append(labels, row);
+  });
+
+  DOM.append(wrapper, svg as unknown as HTMLElement, labels);
+  return wrapper;
+}
+
+// ─── Touchpad diagram ─────────────────────────────────────────────────────────
+function buildTrackpadSection(): HTMLElement {
+  const section = DOM.create('div', 'ko-trackpad-section');
+  const title   = DOM.create('div', 'ko-mouse-title', t('keyboard.touchpad'));
+
+  const pad = DOM.create('div', 'ko-trackpad-graphic');
+
+  const gestures: Array<[string, string]> = [
+    ['↕ Two-finger scroll',          'mouse:wheel-up'],
+    ['↔ Two-finger swipe',           'mouse:wheel-left'],
+    ['Pinch / spread',                'key:Ctrl+Wheel'],
+    ['Click',                         'mouse:left'],
+    ['Two-finger click (right-click)','mouse:right'],
+  ];
+
+  gestures.forEach(([label, id]) => {
+    const row = DOM.create('div', 'ko-key ko-scroll-key');
+    row.dataset.binding = id;
+    const sl = DOM.create('span', 'ko-key-label', label);
+    const sd = DOM.create('span', 'ko-key-desc', KeyboardConfigManager.getBinding(id));
+    DOM.append(row, sl, sd);
+    DOM.append(pad, row);
+  });
+
+  DOM.append(section, title, pad);
+  return section;
+}
+
+// ─── Touch / smartphone section ───────────────────────────────────────────────
+function buildTouchSection(): HTMLElement {
+  const section = DOM.create('div', 'ko-touch-section');
+  const title   = DOM.create('div', 'ko-mouse-title', t('keyboard.touch'));
+
+  const gestures: Array<[string, string]> = [
+    ['Tap',                       'mouse:left'],
+    ['Long press',                'mouse:right'],
+    ['Swipe up/down',             'mouse:wheel-up'],
+    ['Swipe left/right',         'mouse:wheel-left'],
+    ['Pinch / spread',            'key:Ctrl+Wheel'],
+    ['Two-finger tap',            'mouse:middle'],
+  ];
+
+  gestures.forEach(([label, id]) => {
+    const row = DOM.create('div', 'ko-key ko-scroll-key');
+    row.dataset.binding = id;
+    const sl = DOM.create('span', 'ko-key-label', label);
+    const sd = DOM.create('span', 'ko-key-desc', KeyboardConfigManager.getBinding(id));
+    DOM.append(row, sl, sd);
+    DOM.append(section, row);
+  });
+
+  DOM.append(section, title);
+  // Re-insert title before the rows
+  section.insertBefore(title, section.firstChild);
+  return section;
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────
@@ -79,7 +228,6 @@ export interface KeyboardOverlayApi {
 export const KeyboardOverlay = (): KeyboardOverlayApi => {
   const overlay = DOM.create('div', 'ko-overlay hidden');
   overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-label', 'Keyboard & Mouse reference');
   overlay.setAttribute('aria-modal', 'true');
 
   // ---- Close on backdrop click ----
@@ -92,14 +240,15 @@ export const KeyboardOverlay = (): KeyboardOverlayApi => {
 
   // Title bar
   const titleBar = DOM.create('div', 'ko-title-bar');
-  const title    = DOM.create('h2', 'ko-title', '⌨ Keyboard & Mouse Reference');
-  const hint     = DOM.create('span', 'ko-hint', 'Click a key to edit its description. Press Esc to close.');
+  const title    = DOM.create('h2', 'ko-title', t('keyboard.title'));
+  const hint     = DOM.create('span', 'ko-hint', t('keyboard.closeHint'));
   const closeBtn = DOM.create('button', 'ko-close-btn', '✕');
   (closeBtn as HTMLButtonElement).type = 'button';
   closeBtn.addEventListener('click', close);
   DOM.append(titleBar, title, hint, closeBtn);
 
-  // Keyboard grid
+  // ---- Keyboard grid (always shown for devices with keyboards) ----
+  const kbSection = DOM.create('div', 'ko-kb-section');
   const kbd = DOM.create('div', 'ko-keyboard');
   KB_ROWS.forEach((row) => {
     const rowEl = DOM.create('div', 'ko-row');
@@ -111,7 +260,7 @@ export const KeyboardOverlay = (): KeyboardOverlayApi => {
 
   // Modifier combos (Ctrl+Wheel, Shift+Wheel)
   const combosSection = DOM.create('div', 'ko-combos-section');
-  const combosTitle   = DOM.create('div', 'ko-combos-title', '⚡ Modifier + Scroll Wheel');
+  const combosTitle   = DOM.create('div', 'ko-combos-title', t('keyboard.modifierScroll'));
   const combos: Array<[string, string]> = [
     ['Ctrl + ↕ Wheel', 'key:Ctrl+Wheel'],
     ['Shift + ↕ Wheel', 'key:Shift+Wheel'],
@@ -126,99 +275,46 @@ export const KeyboardOverlay = (): KeyboardOverlayApi => {
     DOM.append(combosGrid, combo);
   });
   DOM.append(combosSection, combosTitle, combosGrid);
+  DOM.append(kbSection, kbd, combosSection);
 
-  // Mouse diagram
-  const mouseSection  = DOM.create('div', 'ko-mouse-section');
-  const mouseTitle    = DOM.create('div', 'ko-mouse-title', '🖱 Mouse');
-  const mouseDiagram  = DOM.create('div', 'ko-mouse-diagram');
+  // ---- Pointer input sections (only one shown at a time based on device) ----
+  const mouseSection    = DOM.create('div', 'ko-mouse-section');
+  const mouseTitleEl    = DOM.create('div', 'ko-mouse-title', t('keyboard.mouse'));
+  const mouseGraphic    = buildMouseGraphic();
+  DOM.append(mouseSection, mouseTitleEl, mouseGraphic);
 
-  const mouseButtons  = DOM.create('div', 'ko-mouse-buttons');
-  const leftBtn   = buildMouseButton('Left\nClick',     'mouse:left');
-  const middleBtn = buildMouseButton('Middle\n/ Scroll', 'mouse:middle');
-  const rightBtn  = buildMouseButton('Right\nClick',    'mouse:right');
-  DOM.append(mouseButtons, leftBtn, middleBtn, rightBtn);
+  const trackpadSection = buildTrackpadSection();
+  const touchSection    = buildTouchSection();
 
-  const mouseScrolls = DOM.create('div', 'ko-mouse-scrolls');
-  const scrollEntries: Array<[string, string]> = [
-    ['↑ Scroll up',    'mouse:wheel-up'],
-    ['↓ Scroll down',  'mouse:wheel-down'],
-    ['← Scroll left',  'mouse:wheel-left'],
-    ['→ Scroll right', 'mouse:wheel-right'],
-  ];
-  scrollEntries.forEach(([label, id]) => {
-    const sb = DOM.create('div', 'ko-key ko-scroll-key');
-    sb.dataset.binding = id;
-    const sl = DOM.create('span', 'ko-key-label', label);
-    const sd = DOM.create('span', 'ko-key-desc', KeyboardConfigManager.getBinding(id));
-    DOM.append(sb, sl, sd);
-    DOM.append(mouseScrolls, sb);
-  });
-
-  DOM.append(mouseDiagram, mouseButtons, mouseScrolls);
-  DOM.append(mouseSection, mouseTitle, mouseDiagram);
-
-  // ---- Inline edit ----
-  let editingEl: HTMLElement | null = null;
-  let editInput: HTMLInputElement | null = null;
-
-  function startEdit(keyEl: HTMLElement): void {
-    if (editingEl === keyEl) return;
-    cancelEdit();
-
-    editingEl = keyEl;
-    keyEl.classList.add('ko-key-editing');
-    const descEl = keyEl.querySelector('.ko-key-desc') as HTMLElement;
-    const bindingId = keyEl.dataset.binding ?? '';
-
-    editInput = DOM.create('input', 'ko-key-edit-input') as HTMLInputElement;
-    editInput.type  = 'text';
-    editInput.value = KeyboardConfigManager.getBinding(bindingId);
-    editInput.placeholder = 'Describe this key…';
-
-    editInput.addEventListener('keydown', (e) => {
-      e.stopPropagation(); // prevent the keydown from triggering app shortcuts
-      if (e.key === 'Enter') confirmEdit();
-      if (e.key === 'Escape') cancelEdit();
-    });
-    editInput.addEventListener('blur', confirmEdit);
-
-    descEl.replaceWith(editInput);
-    editInput.focus();
-    editInput.select();
-  }
-
-  function confirmEdit(): void {
-    if (!editingEl || !editInput) return;
-    const bindingId = editingEl.dataset.binding ?? '';
-    const newVal    = editInput.value.trim();
-    KeyboardConfigManager.setBinding(bindingId, newVal);
-
-    const newDesc = DOM.create('span', 'ko-key-desc', newVal);
-    editInput.replaceWith(newDesc);
-    editingEl.classList.remove('ko-key-editing');
-    editingEl = null;
-    editInput = null;
-  }
-
-  function cancelEdit(): void {
-    if (!editingEl || !editInput) return;
-    const bindingId = editingEl.dataset.binding ?? '';
-    const newDesc = DOM.create('span', 'ko-key-desc', KeyboardConfigManager.getBinding(bindingId));
-    editInput.replaceWith(newDesc);
-    editingEl.classList.remove('ko-key-editing');
-    editingEl = null;
-    editInput = null;
-  }
-
-  // Delegate click to any .ko-key
-  panel.addEventListener('click', (e) => {
-    const target = (e.target as HTMLElement).closest('.ko-key') as HTMLElement | null;
-    if (target) startEdit(target);
-  });
-
-  // ---- Assemble ----
-  DOM.append(panel, titleBar, kbd, combosSection, mouseSection);
+  // ---- Assemble (initial) ----
+  DOM.append(panel, titleBar, kbSection, mouseSection, trackpadSection, touchSection);
   DOM.append(overlay, panel);
+
+  // ---- Show/hide sections based on detected input device ----
+  function updateDeviceSections(device: InputDevice): void {
+    const isTouch    = device === 'touchscreen' || device === 'smartphone';
+    const isTrackpad = device === 'trackpad';
+
+    // Keyboard section: hide for touch-only (smartphone)
+    kbSection.style.display = device === 'smartphone' ? 'none' : '';
+
+    mouseSection.style.display    = (!isTouch && !isTrackpad) ? '' : 'none';
+    trackpadSection.style.display = isTrackpad ? '' : 'none';
+    touchSection.style.display    = isTouch ? '' : 'none';
+  }
+
+  updateDeviceSections(getInputDevice());
+  onInputDeviceChange(updateDeviceSections);
+
+  // ---- Update locale ----
+  onLocaleChange(() => {
+    title.textContent     = t('keyboard.title');
+    hint.textContent      = t('keyboard.closeHint');
+    combosTitle.textContent = t('keyboard.modifierScroll');
+    mouseTitleEl.textContent = t('keyboard.mouse');
+    trackpadSection.querySelector('.ko-mouse-title')!.textContent = t('keyboard.touchpad');
+    touchSection.querySelector('.ko-mouse-title')!.textContent    = t('keyboard.touch');
+  });
 
   // ---- API ----
   let _open = false;
@@ -230,16 +326,23 @@ export const KeyboardOverlay = (): KeyboardOverlayApi => {
   }
 
   function close(): void {
-    cancelEdit();
     _open = false;
     overlay.classList.add('hidden');
   }
 
   function refresh(): void {
     panel.querySelectorAll<HTMLElement>('.ko-key').forEach((keyEl) => {
-      if (keyEl === editingEl) return; // skip currently-edited key
       const id = keyEl.dataset.binding ?? '';
       const descEl = keyEl.querySelector('.ko-key-desc') as HTMLElement | null;
+      if (descEl) descEl.textContent = KeyboardConfigManager.getBinding(id);
+      // Update unused state
+      const hasDesc = !!KeyboardConfigManager.getBinding(id);
+      keyEl.classList.toggle('ko-key-unused', !hasDesc);
+    });
+    // Also refresh mouse label rows
+    panel.querySelectorAll<HTMLElement>('.ko-mouse-label-row').forEach((row) => {
+      const id = row.dataset.binding ?? '';
+      const descEl = row.querySelector('.ko-key-desc') as HTMLElement | null;
       if (descEl) descEl.textContent = KeyboardConfigManager.getBinding(id);
     });
   }
@@ -247,7 +350,7 @@ export const KeyboardOverlay = (): KeyboardOverlayApi => {
   return { element: overlay, open, close, isOpen: () => _open, refresh };
 };
 
-// ─── Mouse button helper ─────────────────────────────────────────────────────
+// ─── Mouse button helper (kept for potential external use) ────────────────────
 function buildMouseButton(label: string, bindingId: string): HTMLElement {
   const btn = DOM.create('div', 'ko-key ko-mouse-btn');
   btn.dataset.binding = bindingId;
@@ -256,6 +359,7 @@ function buildMouseButton(label: string, bindingId: string): HTMLElement {
   DOM.append(btn, lbl, desc);
   return btn;
 }
+void buildMouseButton; // suppress unused warning
 
 /** The reset-to-defaults helper, exported for use in ToolsColumn. */
 export function resetOverlayDefaults(): void {
