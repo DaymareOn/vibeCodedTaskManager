@@ -526,7 +526,9 @@ export const Timeline = (onEditTask?: (task: Task) => void): HTMLElement => {
       historyBanner.classList.add('hidden');
       viewHistorySeq = null;
     } else {
-      const entry = Changelog.getEntryAt(val - 1); // val entries applied; last one is at index val-1
+      // `val` is a 1-based count of how many entries to apply (slider range: 0 = empty … N = live).
+      // getEntryAt() uses a 0-based array index, so the last applied entry is at index val - 1.
+      const entry = Changelog.getEntryAt(val - 1);
       const ts = entry ? new Date(entry.timestamp).toLocaleString() : '';
       const taskTitle = entry
         ? `${entry.type === 'delete' ? '🗑' : entry.type === 'create' ? '✚' : '✎'} "${entry.newState?.title ?? entry.previousState?.title ?? entry.taskId}"`
@@ -535,7 +537,9 @@ export const Timeline = (onEditTask?: (task: Task) => void): HTMLElement => {
       historyBanner.textContent = `📜 History snapshot – ${ts}${taskTitle ? ': ' + taskTitle : ''} (${val}/${count})`;
       scrubberContainer.classList.add('in-history');
       historyBanner.classList.remove('hidden');
-      viewHistorySeq = val; // set before renderCanvas
+      // viewHistorySeq is the seq cutoff passed to getTasksAtSeq(); val serves as both
+      // the 1-based slider position and the max seq to include (seq numbers are sequential).
+      viewHistorySeq = val;
     }
   }
 

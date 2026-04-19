@@ -44,7 +44,11 @@
  * Test suite 10 – Tools panel collapse / expand
  *   Verifies that the toggle button collapses and expands the tools panel.
  *
- * Test suite 11 – F1 overlay documentation coverage
+ * Test suite 11 – Data Model compliance
+ *   Pure Node.js test. Validates that every entry in sampleTasks.json conforms
+ *   to the Task schema constraints.
+ *
+ * Test suite 12 – F1 overlay documentation coverage
  *   Pure Node.js test (no browser). Verifies that every app-specific
  *   mouse / keyboard interaction is present in the DEFAULT_BINDINGS of the
  *   keyboard help overlay with a non-empty description.
@@ -716,7 +720,7 @@ test.describe('Data Model compliance', () => {
 
 
 // ---------------------------------------------------------------------------
-// Suite 11 – F1 overlay documentation coverage
+// Suite 12 – F1 overlay documentation coverage
 // Pure Node.js test – verifies every app-specific interaction has a
 // documented, non-empty description in the DEFAULT_BINDINGS record.
 // ---------------------------------------------------------------------------
