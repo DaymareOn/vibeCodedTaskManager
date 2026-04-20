@@ -9,7 +9,7 @@ import taskSchema from '../schemas/task.schema.json';
  * Add a new Migration entry below for any breaking schema change.
  */
 // Extracts "0.1.0" from a $id like "task-schema-v0.1.0".
-const versionMatch = taskSchema.$id.match(/^.*-v(\d+\.\d+\.\d+)$/);
+const versionMatch = taskSchema.$id.match(/^task-schema-v(\d+\.\d+\.\d+)$/);
 if (!versionMatch) {
   throw new Error(
     `task.schema.json $id has unexpected format: "${taskSchema.$id}". ` +

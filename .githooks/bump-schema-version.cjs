@@ -56,12 +56,10 @@ if (!match) {
 const [, prefix, major, minor, patch] = match;
 const newId = `${prefix}${major}.${minor}.${parseInt(patch, 10) + 1}`;
 
-// Replace only the $id value, preserving all other formatting in the file.
-const updatedContent = content.replace(
-  /"\$id":\s*"[^"]*"/,
-  `"$id": "${newId}"`,
-);
+// Replace only the $id value by matching the exact current value as a literal
+// string, avoiding any risk of matching nested $id fields.
+const updatedContent = content.replace(`"$id": "${currentId}"`, `"$id": "${newId}"`);
 fs.writeFileSync(schemaPath, updatedContent);
-execSync(`git add ${SCHEMA_FILE}`);
+execSync(`git add -- "${SCHEMA_FILE}"`);
 
 console.log(`[pre-commit] Bumped schema $id: ${currentId} → ${newId}`);
