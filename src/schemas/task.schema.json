@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "task-schema-v0.1.0",
-  "$comment": "Data Model version: 0.1.0. Bump $id and add a migration in migrations.ts whenever this schema changes.",
+  "$comment": "Data Model version is derived from $id (e.g. 'task-schema-v0.1.0' → '0.1.0'). Bump $id and add a migration in migrations.ts whenever this schema changes – DATA_VERSION in migrations.ts is set automatically from this $id.",
   "title": "Task",
   "description": "A single work item managed by the Vibe Coded Task Manager.",
   "type": "object",

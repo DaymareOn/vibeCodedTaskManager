@@ -1,10 +1,13 @@
 import type { Task } from '../types/Task';
+import taskSchema from '../schemas/task.schema.json';
 
 /**
- * Current data model version. Bump this whenever the Task schema changes
- * in a way that requires migration (add a new Migration entry too).
+ * Current data model version – derived automatically from the `$id` field of
+ * `task.schema.json` (e.g. "task-schema-v0.1.0" → "0.1.0").
+ * Bump the schema's `$id` (and add a Migration entry below) whenever the
+ * Task schema changes.
  */
-export const DATA_VERSION = '0.1.0';
+export const DATA_VERSION: string = taskSchema.$id.replace(/^.*-v/, '');
 
 /** Signature for a single version-step migration. */
 interface Migration {
