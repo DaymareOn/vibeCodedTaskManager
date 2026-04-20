@@ -1291,3 +1291,81 @@ test.describe('Arrow key navigates between tasks by priority score', () => {
     ).toHaveValue('Low Priority Task');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Suite 16 – No console errors or warnings on page load
+//   Verifies that loading the app with either the seeded sample-task dataset
+//   or an empty dataset produces zero browser console errors, warnings, or
+//   uncaught page errors.
+// ---------------------------------------------------------------------------
+
+test.describe('No console errors or warnings on page load', () => {
+  test('sample tasks load without browser console errors or warnings', async ({ page }) => {
+    const problems: string[] = [];
+
+    // Intercept the exchange-rate API so no real network request is made.
+    // Without this, the blocked domain would produce a browser-level console error.
+    await page.route('**/api.frankfurter.app/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ rates: { USD: 1.1, GBP: 0.85 } }),
+      }),
+    );
+
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' || msg.type() === 'warning') {
+        problems.push(`[${msg.type()}] ${msg.text()}`);
+      }
+    });
+    page.on('pageerror', (err) => {
+      problems.push(`[pageerror] ${err.message}`);
+    });
+
+    await page.goto('/');
+    // clearStorage clears localStorage and reloads; the app then seeds sample tasks
+    await clearStorage(page);
+    await page.waitForSelector('.task-rect', { timeout: 10_000 });
+    // Wait for any async operations (e.g. exchange-rate fetch) to finish
+    await page.waitForLoadState('networkidle');
+
+    expect(
+      problems,
+      `Unexpected console errors/warnings:\n${problems.join('\n')}`,
+    ).toHaveLength(0);
+  });
+
+  test('empty dataset loads without browser console errors or warnings', async ({ page }) => {
+    const problems: string[] = [];
+
+    // Intercept the exchange-rate API so no real network request is made.
+    await page.route('**/api.frankfurter.app/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ rates: { USD: 1.1, GBP: 0.85 } }),
+      }),
+    );
+
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' || msg.type() === 'warning') {
+        problems.push(`[${msg.type()}] ${msg.text()}`);
+      }
+    });
+    page.on('pageerror', (err) => {
+      problems.push(`[pageerror] ${err.message}`);
+    });
+
+    await page.goto('/');
+    // clearTasksOnly sets the seeded flag and removes tasks_data, then reloads
+    await clearTasksOnly(page);
+    await page.waitForSelector('.tools-column', { timeout: 10_000 });
+    // Wait for any async operations (e.g. exchange-rate fetch) to finish
+    await page.waitForLoadState('networkidle');
+
+    expect(
+      problems,
+      `Unexpected console errors/warnings:\n${problems.join('\n')}`,
+    ).toHaveLength(0);
+  });
+});

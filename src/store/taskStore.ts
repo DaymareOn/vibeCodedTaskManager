@@ -180,7 +180,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       const res = await fetch(`https://api.frankfurter.app/latest?from=${mainCurrency}`);
       if (!res.ok) {
-        console.warn(`[TaskManager] Failed to fetch exchange rates: HTTP ${res.status}`);
+        console.debug(`[TaskManager] Failed to fetch exchange rates: HTTP ${res.status}`);
         return;
       }
       const data = (await res.json()) as { rates: Record<string, number> };
@@ -188,7 +188,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       set({ exchangeRates: rates, exchangeRatesUpdatedAt: Date.now() });
     } catch (err) {
       // Network failure — keep stale rates and log for debugging
-      console.warn('[TaskManager] Exchange rate fetch failed, using stale/no-conversion rates.', err);
+      console.debug('[TaskManager] Exchange rate fetch failed, using stale/no-conversion rates.', err);
     }
   },
 

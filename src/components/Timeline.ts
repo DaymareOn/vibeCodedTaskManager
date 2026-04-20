@@ -51,7 +51,10 @@ function getTaskEndMs(task: Task, now: number): number {
   if (typeof target === 'string') {
     return new Date(target).getTime();
   }
-  return now + parseDuration(target.iso);
+  if (target?.iso) {
+    return now + parseDuration(target.iso);
+  }
+  return now;
 }
 
 function escapeHtml(str: string): string {
