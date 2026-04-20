@@ -4,8 +4,9 @@ import taskSchema from '../schemas/task.schema.json';
 /**
  * Current data model version – derived automatically from the `$id` field of
  * `task.schema.json` (e.g. "task-schema-v0.1.0" → "0.1.0").
- * Bump the schema's `$id` (and add a Migration entry below) whenever the
- * Task schema changes.
+ * The pre-commit hook (.githooks/pre-commit) bumps the patch component of
+ * `$id` automatically on every commit that touches the schema file.
+ * Add a new Migration entry below for any breaking schema change.
  */
 // Extracts "0.1.0" from a $id like "task-schema-v0.1.0".
 const versionMatch = taskSchema.$id.match(/^.*-v(\d+\.\d+\.\d+)$/);

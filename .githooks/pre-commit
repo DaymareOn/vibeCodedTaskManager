@@ -1,0 +1,4 @@
+#!/bin/sh
+# Auto-bumps the patch version in task.schema.json $id on every commit that
+# touches the file. See .githooks/bump-schema-version.cjs for the full logic.
+node "$(dirname "$0")/bump-schema-version.cjs"
