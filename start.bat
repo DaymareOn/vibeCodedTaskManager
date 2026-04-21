@@ -191,6 +191,7 @@ echo  [INFO] Starting Vibe Coded Task Manager...
 echo         The app will open in your browser automatically.
 echo.
 echo  [INFO] To stop the app, close this window or press Ctrl+C
+echo  [INFO] The exchange-rate backend proxy starts automatically with npm run dev.
 echo.
 
 :: Open the browser after a short delay (Vite default port is 5173)

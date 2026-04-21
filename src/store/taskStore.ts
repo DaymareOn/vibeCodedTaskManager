@@ -178,13 +178,33 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // Skip if rates are fresh and already for this base
     if (age < EXCHANGE_RATE_TTL_MS && exchangeRates[mainCurrency] === 1) return;
     try {
-      const res = await fetch(`https://api.frankfurter.app/latest?from=${mainCurrency}`);
+      // Call the backend proxy instead of the external API directly.
+      // Server-to-server requests bypass the browser CORS restriction.
+      const res = await fetch(`/api/exchange-rates?from=${mainCurrency}`);
       if (!res.ok) {
         console.debug(`[TaskManager] Failed to fetch exchange rates: HTTP ${res.status}`);
         return;
       }
-      const data = (await res.json()) as { rates: Record<string, number> };
-      const rates: Record<string, number> = { ...data.rates, [mainCurrency]: 1 };
+      const data: unknown = await res.json();
+
+      // Sanitize: confirm the payload has the expected shape before storing.
+      if (
+        typeof data !== 'object' ||
+        data === null ||
+        typeof (data as Record<string, unknown>).rates !== 'object' ||
+        (data as Record<string, unknown>).rates === null
+      ) {
+        console.debug('[TaskManager] Exchange rate response missing expected "rates" object.');
+        return;
+      }
+
+      const rawRates = (data as { rates: Record<string, unknown> }).rates;
+      const rates: Record<string, number> = { [mainCurrency]: 1 };
+      for (const [key, value] of Object.entries(rawRates)) {
+        if (typeof value === 'number' && isFinite(value) && value > 0) {
+          rates[key] = value;
+        }
+      }
       set({ exchangeRates: rates, exchangeRatesUpdatedAt: Date.now() });
     } catch (err) {
       // Network failure — keep stale rates and log for debugging
