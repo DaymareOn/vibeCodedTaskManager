@@ -1960,3 +1960,90 @@ select.form-input    { cursor: pointer; }
   border-color: var(--primary);
 }
 
+
+/* ============================================================
+   Data Model Overlay
+   ============================================================ */
+.dmo-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+  outline: none;
+}
+
+.dmo-overlay.hidden { display: none; }
+
+.dmo-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.6rem;
+  width: 100%;
+  max-width: 960px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.dmo-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.7rem;
+}
+
+.dmo-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  flex: 1;
+}
+
+.dmo-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.dmo-close-btn {
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.82rem;
+  transition: background 0.15s;
+  margin-left: auto;
+}
+.dmo-close-btn:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+.dmo-svg-container {
+  overflow: auto;
+  padding: 1rem;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.dmo-svg {
+  min-width: 800px;
+  height: auto;
+  display: block;
+}
+
+/* Assignee autocomplete input */
+.task-form input[list] {
+  width: 100%;
+}
