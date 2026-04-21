@@ -96,6 +96,13 @@
  *        might have exported from an older version of the app) via the Import
  *        button.  After import, migrated tasks must appear in the Timeline and
  *        no browser console errors may occur.
+ *
+ * Test suite 18 – npm install prepare script in non-git directory
+ *   Pure Node.js test (no browser). Verifies that the `prepare` script in
+ *   package.json exits with code 0 when the working directory has no `.git`
+ *   folder — i.e. the scenario that occurs when a user downloads the release
+ *   zip and runs start.bat.  Covers the exception-checking requirement for
+ *   user scripts (start.bat).
  */
 
 import { test, expect } from '@playwright/test';
@@ -103,6 +110,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 import { DEFAULT_BINDINGS } from '../src/utils/keyboardConfig';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -252,7 +260,7 @@ test.describe('Import / Export round-trip', () => {
     ).toBeVisible({ timeout: 5_000 });
   });
 
-  test('exported JSON is structurally identical to sampleTasks.json', async ({ page }) => {
+  test('exported JSON tasks are structurally identical to sampleTasks.json and export includes a dataVersion envelope', async ({ page }) => {
     // 1. Import sample tasks
     const [fileChooser] = await Promise.all([
       page.waitForEvent('filechooser'),
@@ -275,10 +283,17 @@ test.describe('Import / Export round-trip', () => {
     const exportedContent = fs.readFileSync(exportedPath!, 'utf-8');
     const originalContent = fs.readFileSync(SAMPLE_TASKS_JSON, 'utf-8');
 
-    const exported = JSON.parse(exportedContent) as unknown;
-    const original = JSON.parse(originalContent) as unknown;
+    // The export now wraps tasks in a versioned envelope { dataVersion, tasks }.
+    // This ensures re-importing an exported file never triggers unnecessary migrations.
+    const exported = JSON.parse(exportedContent) as { dataVersion: string; tasks: unknown[] };
+    const original = JSON.parse(originalContent) as unknown[];
 
-    expect(exported).toEqual(original);
+    // Verify the envelope contains a non-empty dataVersion string.
+    expect(typeof exported.dataVersion).toBe('string');
+    expect(exported.dataVersion.length).toBeGreaterThan(0);
+
+    // Verify the tasks inside the envelope are structurally identical to the source.
+    expect(exported.tasks).toEqual(original);
   });
 });
 
@@ -1590,5 +1605,42 @@ test.describe('Data migration sanitizer', () => {
       problems,
       `Unexpected console errors/warnings during legacy import+migration:\n${problems.join('\n')}`,
     ).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite 18 – npm install prepare script tolerates a non-git directory
+// ---------------------------------------------------------------------------
+// Pure Node.js test (no browser). Verifies that the `prepare` script defined
+// in package.json succeeds (exit code 0) when run from a directory that has
+// no `.git` folder – i.e. the scenario that occurs when a user downloads the
+// release as a zip archive and runs `npm install` / `start.bat` from it.
+// This covers the exception-checking requirement for user scripts (start.bat).
+// ---------------------------------------------------------------------------
+
+test.describe('npm install prepare script in non-git directory', () => {
+  test('prepare script exits cleanly when there is no .git directory (start.bat exception check)', () => {
+    // Create a temporary directory with no .git sub-directory.
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'non-git-'));
+    const setupScript = path.resolve(__dirname, '../scripts/setup-git-hooks.js');
+    let exitCode = 0;
+    let stderr = '';
+    try {
+      // Run the setup script from the non-git temp directory.
+      execSync(`node ${setupScript}`, { cwd: tmpDir, stdio: 'pipe' });
+    } catch (err) {
+      const e = err as { status?: number; stderr?: Buffer };
+      exitCode = e.status ?? 1;
+      stderr = e.stderr?.toString() ?? '';
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+
+    expect(
+      exitCode,
+      `prepare script failed in a non-git directory (exit code ${exitCode}).\nstderr: ${stderr}\n` +
+        'This reproduces the "fatal: not in a git directory / npm error code 128" error ' +
+        'reported when running start.bat on the release zip.',
+    ).toBe(0);
   });
 });
