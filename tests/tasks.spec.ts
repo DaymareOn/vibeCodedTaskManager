@@ -823,9 +823,14 @@ const REQUIRED_INTERACTION_IDS: string[] = [
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   'key:F1',            // open keyboard & mouse reference overlay
   'key:F2',            // open concepts & glossary overlay
+  'key:F3',            // open data model overlay
   'key:Escape',        // close active modal / overlay
   'key:ArrowLeft',     // history scrubber: go to previous version (when focused)
   'key:ArrowRight',    // history scrubber: go to next version   (when focused)
+  'key:d',             // delete focused task
+  'key:c',             // create task / sub-task
+  'key:ArrowUp',       // navigate to higher-priority task
+  'key:ArrowDown',     // navigate to lower-priority task
 ];
 
 test.describe('F1 Overlay documentation coverage', () => {
@@ -2128,5 +2133,186 @@ test.describe('Backend response-cache TTL unit tests', () => {
     } finally {
       await closeServer(backend);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite: 'd' key deletes task in EditTaskColumn
+// ---------------------------------------------------------------------------
+
+test.describe("'d' key shortcut deletes task in EditTaskColumn", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await clearStorage(page);
+    await page.waitForSelector('.task-rect', { timeout: 10_000 });
+  });
+
+  test("pressing 'd' when edit column is open deletes the task", async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') errors.push(msg.text());
+    });
+
+    await page.locator('.task-rect', {
+      has: page.locator('.task-title', { hasText: 'Renew driving licence' }),
+    }).first().click();
+
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
+
+    await page.locator('.edit-task-column-inner').click();
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.keyboard.press('d');
+
+    await expect(
+      page.locator('.task-rect .task-title', { hasText: 'Renew driving licence' }),
+    ).toHaveCount(0, { timeout: 5_000 });
+    expect(errors).toHaveLength(0);
+  });
+
+  test("pressing 'd' when a text field is focused does NOT delete the task", async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    await page.locator('.task-rect', {
+      has: page.locator('.task-title', { hasText: 'Renew driving licence' }),
+    }).first().click();
+
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
+
+    await page.locator('.edit-task-column input[placeholder="Task title"]').click();
+
+    await page.keyboard.press('d');
+
+    await expect(
+      page.locator('.task-rect .task-title', { hasText: 'Renew driving licence' }).first(),
+    ).toBeVisible({ timeout: 3_000 });
+    expect(errors).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite: 'c' key creates task/sub-task
+// ---------------------------------------------------------------------------
+
+test.describe("'c' key shortcut creates task / sub-task on Timeline", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await clearTasksOnly(page);
+    await page.waitForSelector('.tools-column', { timeout: 10_000 });
+  });
+
+  test("pressing 'c' on empty timeline opens the add-task form", async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    await page.locator('.timeline-body').click({ position: { x: 300, y: 50 } });
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.modal-overlay')).toHaveCount(0, { timeout: 3_000 });
+
+    await page.keyboard.press('c');
+    await expect(page.locator('.modal-overlay .task-form')).toBeVisible({ timeout: 5_000 });
+    await page.keyboard.press('Escape');
+    expect(errors).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite: F3 overlay – Data Model Class Diagram
+// ---------------------------------------------------------------------------
+
+test.describe('F3 overlay – Data Model Class Diagram', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForSelector('.tools-column', { timeout: 10_000 });
+  });
+
+  test('pressing F3 opens the data model overlay', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    await page.keyboard.press('F3');
+    await expect(page.locator('.dmo-overlay')).not.toHaveClass(/hidden/, { timeout: 5_000 });
+    await expect(page.locator('.dmo-panel')).toBeVisible();
+    expect(errors).toHaveLength(0);
+  });
+
+  test('pressing Escape closes the data model overlay', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    await page.keyboard.press('F3');
+    await expect(page.locator('.dmo-overlay')).not.toHaveClass(/hidden/, { timeout: 3_000 });
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.dmo-overlay')).toHaveClass(/hidden/, { timeout: 3_000 });
+    expect(errors).toHaveLength(0);
+  });
+
+  test('the data model SVG diagram is present', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    await page.keyboard.press('F3');
+    await expect(page.locator('.dmo-svg')).toBeVisible({ timeout: 5_000 });
+    expect(errors).toHaveLength(0);
+  });
+
+  test('the "Open data model diagram" button in ToolsColumn opens the overlay', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    await page.click('button:has-text("Open data model diagram")');
+    await expect(page.locator('.dmo-panel')).toBeVisible({ timeout: 5_000 });
+    expect(errors).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite: Assignee field in TaskForm
+// ---------------------------------------------------------------------------
+
+test.describe('Assignee field in TaskForm', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await clearTasksOnly(page);
+    await page.waitForSelector('.tools-column', { timeout: 10_000 });
+  });
+
+  test('assignee field is present in the add-task form', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    await page.locator('.timeline-body').click({ position: { x: 100, y: 100 } });
+    await expect(page.locator('.modal-overlay .task-form')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('input[placeholder="Assignee (optional)"]')).toBeVisible();
+    expect(errors).toHaveLength(0);
+  });
+
+  test('can create a task with an assignee and see it saved', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    await page.locator('.timeline-body').click({ position: { x: 100, y: 100 } });
+    await expect(page.locator('.modal-overlay')).toBeVisible({ timeout: 5_000 });
+
+    await page.fill('input[placeholder="Task title"]', 'Task with assignee');
+    await page.fill('input[placeholder="Assignee (optional)"]', 'Alice');
+    await page.fill('input[placeholder="Amount (e.g. 1500)"]', '500');
+
+    const deliveryDate = new Date();
+    deliveryDate.setDate(deliveryDate.getDate() + 30);
+    await page.locator('.form-score-section input[type="date"]').fill(deliveryDate.toISOString().slice(0, 10));
+    await page.locator('.form-score-section .duration-builder').last().locator('.duration-num').nth(3).fill('1');
+
+    await page.click('button[type="submit"]');
+    await expect(page.locator('.task-rect .task-title', { hasText: 'Task with assignee' }).first()).toBeVisible({ timeout: 5_000 });
+
+    await page.locator('.task-rect', {
+      has: page.locator('.task-title', { hasText: 'Task with assignee' }),
+    }).first().click();
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
+    await expect(page.locator('.edit-task-column input[placeholder="Assignee (optional)"]')).toHaveValue('Alice', { timeout: 3_000 });
+    expect(errors).toHaveLength(0);
   });
 });
