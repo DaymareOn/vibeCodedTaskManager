@@ -1,10 +1,22 @@
 import type { Task } from '../types/Task';
+import taskSchema from '../schemas/task.schema.json';
 
 /**
- * Current data model version. Bump this whenever the Task schema changes
- * in a way that requires migration (add a new Migration entry too).
+ * Current data model version – derived automatically from the `$id` field of
+ * `task.schema.json` (e.g. "task-schema-v0.1.0" → "0.1.0").
+ * The pre-commit hook (.githooks/pre-commit) bumps the patch component of
+ * `$id` automatically on every commit that touches the schema file.
+ * Add a new Migration entry below for any breaking schema change.
  */
-export const DATA_VERSION = '0.1.0';
+// Extracts "0.1.0" from a $id like "task-schema-v0.1.0".
+const versionMatch = taskSchema.$id.match(/^task-schema-v(\d+\.\d+\.\d+)$/);
+if (!versionMatch) {
+  throw new Error(
+    `task.schema.json $id has unexpected format: "${taskSchema.$id}". ` +
+    'Expected "task-schema-v<semver>", e.g. "task-schema-v0.1.0".',
+  );
+}
+export const DATA_VERSION: string = versionMatch[1];
 
 /** Signature for a single version-step migration. */
 interface Migration {
@@ -43,6 +55,14 @@ const MIGRATIONS: Migration[] = [
           ...task,
         };
       }),
+  },
+  {
+    fromVersion: '0.1.0',
+    toVersion: '0.1.1',
+    // No structural data changes – $id was bumped automatically by the
+    // pre-commit hook when the schema file was touched.  This entry exists
+    // solely to keep the migration chain contiguous up to DATA_VERSION.
+    up: (tasks) => tasks,
   },
   // Future migrations go here, e.g.:
   //   {

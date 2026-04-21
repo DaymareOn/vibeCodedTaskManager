@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "format": "prettier --write src",
-    "test": "playwright test"
+    "test": "playwright test",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

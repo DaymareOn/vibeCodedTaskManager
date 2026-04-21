@@ -73,11 +73,35 @@
  *   higher priority score and pressing ↓ switches to the task with the next
  *   lower priority score.  Also verifies that the navigation does nothing
  *   when already at the top or bottom of the priority-sorted list.
+ *
+ * Test suite 16 – No console errors or warnings on page load
+ *   Verifies that loading the app with either the seeded sample-task dataset
+ *   or an empty dataset produces zero browser console errors, warnings, or
+ *   uncaught page errors.
+ *
+ * Test suite 17 – Data migration sanitizer
+ *   Browser tests. Verifies that the migration sanitizer correctly upgrades
+ *   stored data from older schema versions to the current DATA_VERSION without
+ *   browser console errors, warnings, or uncaught page errors.
+ *   Three scenarios are covered:
+ *     1. Legacy plain-array format (pre-versioning) whose tasks are missing the
+ *        required priority-score fields.  The 0.0.0→0.1.0 migration must backfill
+ *        `taskValue`, `targetDelivery` (derived from `dueDate` when present, else
+ *        30 days from now), and `remainingEstimate`.  Both tasks must appear in
+ *        the Timeline after the reload, and no browser console errors may occur.
+ *     2. v0.1.0 versioned-envelope format.  The identity migration 0.1.0→0.1.1
+ *        must pass the tasks through unchanged; they must remain visible after
+ *        reload without any browser console errors.
+ *     3. Import of a legacy plain-array JSON file (the same format that a user
+ *        might have exported from an older version of the app) via the Import
+ *        button.  After import, migrated tasks must appear in the Timeline and
+ *        no browser console errors may occur.
  */
 
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { DEFAULT_BINDINGS } from '../src/utils/keyboardConfig';
 
@@ -1366,6 +1390,205 @@ test.describe('No console errors or warnings on page load', () => {
     expect(
       problems,
       `Unexpected console errors/warnings:\n${problems.join('\n')}`,
+    ).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite 17 – Data migration sanitizer
+//   Verifies the migration sanitizer upgrades stored data from older schema
+//   versions to the current DATA_VERSION without browser console errors.
+// ---------------------------------------------------------------------------
+
+/**
+ * Legacy task shape (pre-0.1.0): no taskValue / targetDelivery / remainingEstimate.
+ * The 0.0.0 → 0.1.0 migration must backfill those fields so the app can render
+ * the task in the Timeline.
+ */
+const LEGACY_TASKS_PLAIN_ARRAY = [
+  {
+    id: 'legacy-with-due-1',
+    title: 'Legacy Task With Due Date',
+    description: 'Had a dueDate; targetDelivery should be derived from it.',
+    status: 'in-progress',
+    createdAt: '2025-03-15T08:00:00.000Z',
+    updatedAt: '2025-03-15T08:00:00.000Z',
+    tags: ['legacy'],
+    dueDate: '2026-09-01',
+    // taskValue / targetDelivery / remainingEstimate intentionally absent
+  },
+  {
+    id: 'legacy-no-due-2',
+    title: 'Legacy Task Without Due Date',
+    description: 'No dueDate; targetDelivery should fall back to 30 days from now.',
+    status: 'todo',
+    createdAt: '2025-03-15T08:00:00.000Z',
+    updatedAt: '2025-03-15T08:00:00.000Z',
+    tags: [],
+    // dueDate also absent
+  },
+];
+
+/** A v0.1.0 versioned-envelope stored by the previous app version. */
+const V010_VERSIONED_ENVELOPE = {
+  dataVersion: '0.1.0',
+  tasks: [
+    {
+      id: 'v010-task-1',
+      title: 'V0.1.0 Versioned Task',
+      description: 'Stored by app version 0.1.0; identity migration 0.1.0→0.1.1 must preserve it.',
+      status: 'todo',
+      createdAt: '2025-06-01T00:00:00.000Z',
+      updatedAt: '2025-06-01T00:00:00.000Z',
+      tags: [],
+      taskValue: { type: 'direct', amount: { amount: 500, currency: 'EUR' } },
+      targetDelivery: '2026-12-31',
+      remainingEstimate: { iso: 'P2D' },
+    },
+  ],
+};
+
+test.describe('Data migration sanitizer', () => {
+  test('legacy plain-array data migrates to current version and tasks appear in the Timeline without browser console errors', async ({
+    page,
+  }) => {
+    const problems: string[] = [];
+
+    // Intercept exchange-rate API so no blocked-domain console error is produced.
+    await page.route('**/api.frankfurter.app/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ rates: { USD: 1.1, GBP: 0.85 } }),
+      }),
+    );
+
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' || msg.type() === 'warning') {
+        problems.push(`[${msg.type()}] ${msg.text()}`);
+      }
+    });
+    page.on('pageerror', (err) => {
+      problems.push(`[pageerror] ${err.message}`);
+    });
+
+    await page.goto('/');
+    // Store as a plain JSON array – the legacy format used before versioning was introduced.
+    await page.evaluate((tasks) => {
+      localStorage.setItem('tasks_data', JSON.stringify(tasks));
+      localStorage.setItem('tasks_seeded', 'true');
+    }, LEGACY_TASKS_PLAIN_ARRAY);
+    await page.reload();
+    await page.waitForSelector('.task-rect', { timeout: 10_000 });
+    await page.waitForLoadState('networkidle');
+
+    // Both migrated tasks must be visible in the Timeline.
+    await expect(
+      page.locator('.task-rect .task-title', { hasText: 'Legacy Task With Due Date' }).first(),
+    ).toBeVisible();
+    await expect(
+      page.locator('.task-rect .task-title', { hasText: 'Legacy Task Without Due Date' }).first(),
+    ).toBeVisible();
+
+    expect(
+      problems,
+      `Unexpected console errors/warnings during legacy plain-array migration:\n${problems.join('\n')}`,
+    ).toHaveLength(0);
+  });
+
+  test('v0.1.0 versioned-envelope data migrates via the identity step and tasks remain visible without browser console errors', async ({
+    page,
+  }) => {
+    const problems: string[] = [];
+
+    await page.route('**/api.frankfurter.app/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ rates: { USD: 1.1, GBP: 0.85 } }),
+      }),
+    );
+
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' || msg.type() === 'warning') {
+        problems.push(`[${msg.type()}] ${msg.text()}`);
+      }
+    });
+    page.on('pageerror', (err) => {
+      problems.push(`[pageerror] ${err.message}`);
+    });
+
+    await page.goto('/');
+    // Store as a v0.1.0 versioned envelope so the identity migration 0.1.0→0.1.1 runs.
+    await page.evaluate((envelope) => {
+      localStorage.setItem('tasks_data', JSON.stringify(envelope));
+      localStorage.setItem('tasks_seeded', 'true');
+    }, V010_VERSIONED_ENVELOPE);
+    await page.reload();
+    await page.waitForSelector('.task-rect', { timeout: 10_000 });
+    await page.waitForLoadState('networkidle');
+
+    // The task must be preserved unchanged through the identity migration.
+    await expect(
+      page.locator('.task-rect .task-title', { hasText: 'V0.1.0 Versioned Task' }).first(),
+    ).toBeVisible();
+
+    expect(
+      problems,
+      `Unexpected console errors/warnings during v0.1.0→current migration:\n${problems.join('\n')}`,
+    ).toHaveLength(0);
+  });
+
+  test('importing a legacy plain-array JSON file via the Import button migrates tasks and shows them in the Timeline without browser console errors', async ({
+    page,
+  }) => {
+    const problems: string[] = [];
+
+    await page.route('**/api.frankfurter.app/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ rates: { USD: 1.1, GBP: 0.85 } }),
+      }),
+    );
+
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' || msg.type() === 'warning') {
+        problems.push(`[${msg.type()}] ${msg.text()}`);
+      }
+    });
+    page.on('pageerror', (err) => {
+      problems.push(`[pageerror] ${err.message}`);
+    });
+
+    await page.goto('/');
+    await clearTasksOnly(page);
+
+    // Write the legacy plain-array to a temporary file and import it via the UI.
+    const tmpPath = path.join(os.tmpdir(), 'legacy-tasks-import.json');
+    fs.writeFileSync(tmpPath, JSON.stringify(LEGACY_TASKS_PLAIN_ARRAY));
+
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.click('button:has-text("Import")'),
+    ]);
+    await fileChooser.setFiles(tmpPath);
+
+    // Accept the confirmation dialog shown after import.
+    page.once('dialog', (dialog) => dialog.accept());
+
+    await expect(
+      page.locator('.task-rect .task-title', { hasText: 'Legacy Task With Due Date' }).first(),
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.locator('.task-rect .task-title', { hasText: 'Legacy Task Without Due Date' }).first(),
+    ).toBeVisible({ timeout: 5_000 });
+
+    await page.waitForLoadState('networkidle');
+
+    expect(
+      problems,
+      `Unexpected console errors/warnings during legacy import+migration:\n${problems.join('\n')}`,
     ).toHaveLength(0);
   });
 });

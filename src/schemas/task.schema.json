@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "task-schema-v0.1.0",
-  "$comment": "Data Model version: 0.1.0. Bump $id and add a migration in migrations.ts whenever this schema changes.",
+  "$id": "task-schema-v0.1.1",
+  "$comment": "The $id version (e.g. 'task-schema-v0.1.0') is the source of truth for DATA_VERSION in migrations.ts. It is bumped automatically (patch) by the pre-commit hook (.githooks/pre-commit) on every commit that touches this file. Add a matching migration in migrations.ts for any breaking schema change.",
   "title": "Task",
   "description": "A single work item managed by the Vibe Coded Task Manager.",
   "type": "object",
