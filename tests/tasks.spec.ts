@@ -110,6 +110,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 import { DEFAULT_BINDINGS } from '../src/utils/keyboardConfig';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1619,19 +1620,14 @@ test.describe('Data migration sanitizer', () => {
 
 test.describe('npm install prepare script in non-git directory', () => {
   test('prepare script exits cleanly when there is no .git directory (start.bat exception check)', () => {
-    const { execSync } = require('child_process') as typeof import('child_process');
-
     // Create a temporary directory with no .git sub-directory.
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'non-git-'));
+    const setupScript = path.resolve(__dirname, '../scripts/setup-git-hooks.js');
     let exitCode = 0;
     let stderr = '';
     try {
-      // Re-run exactly the prepare script from package.json.
-      const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf-8')) as {
-        scripts: Record<string, string>;
-      };
-      const prepareScript = pkg.scripts['prepare'];
-      execSync(prepareScript, { cwd: tmpDir, stdio: 'pipe', shell: true });
+      // Run the setup script from the non-git temp directory.
+      execSync(`node ${setupScript}`, { cwd: tmpDir, stdio: 'pipe' });
     } catch (err) {
       const e = err as { status?: number; stderr?: Buffer };
       exitCode = e.status ?? 1;
