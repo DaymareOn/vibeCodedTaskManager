@@ -85,7 +85,8 @@ export const StorageManager = {
   },
 
   exportTasks: (tasks: Task[]): string => {
-    return JSON.stringify(tasks, null, 2);
+    const envelope: StoredData = { dataVersion: DATA_VERSION, tasks };
+    return JSON.stringify(envelope, null, 2);
   },
 
   importTasks: (jsonData: string): Task[] => {

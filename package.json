@@ -9,7 +9,7 @@
     "lint": "eslint src --ext ts,tsx",
     "format": "prettier --write src",
     "test": "playwright test",
-    "prepare": "git config core.hooksPath .githooks"
+    "prepare": "node -e \"try { require('child_process').execSync('git rev-parse --git-dir', {stdio:'ignore'}); require('child_process').execSync('git config core.hooksPath .githooks'); } catch (e) {}\""
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
