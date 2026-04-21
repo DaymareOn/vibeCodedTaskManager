@@ -114,11 +114,6 @@
  *     1. Responds 400 for an invalid (non-ISO-4217) currency code.
  *     2. Proxies a successful Frankfurter response to the caller.
  *     3. Returns 404 for unknown paths.
- *   Pure Node.js test (no browser). Verifies that the `prepare` script in
- *   package.json exits with code 0 when the working directory has no `.git`
- *   folder — i.e. the scenario that occurs when a user downloads the release
- *   zip and runs start.bat.  Covers the exception-checking requirement for
- *   user scripts (start.bat).
  */
 
 import { test, expect } from '@playwright/test';
