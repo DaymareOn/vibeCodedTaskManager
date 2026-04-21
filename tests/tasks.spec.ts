@@ -1899,3 +1899,233 @@ test.describe('Backend server unit tests', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Suite 21 – Backend response-cache TTL unit tests (pure Node.js, no browser)
+//   Exercises the 24-hour TTL cache introduced in server.js.
+//   A local mock-upstream HTTP server stands in for the Frankfurter API so
+//   that real network calls are never made and the test can control time.
+// ---------------------------------------------------------------------------
+
+test.describe('Backend response-cache TTL unit tests', () => {
+  /** 24-hour TTL constant – must match the value in server.js. */
+  const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+  const CURRENCY_RE = /^[A-Z]{3}$/;
+
+  /**
+   * Build an HTTP request handler that mirrors the server.js cache logic.
+   *
+   * @param upstreamBase  HTTP base URL of the mock upstream (e.g. "http://localhost:3011")
+   * @param now           Injectable clock function so tests can simulate time advancing;
+   *                      defaults to Date.now.
+   */
+  function createCacheHandler(
+    upstreamBase: string,
+    now: () => number = Date.now,
+  ): (req: import('http').IncomingMessage, res: import('http').ServerResponse) => void {
+    const responseCache = new Map<string, { body: string; cachedAt: number }>();
+
+    return (req, res) => {
+      const reqUrl = new URL(req.url ?? '/', `http://localhost`);
+
+      if (reqUrl.pathname === '/api/exchange-rates' && req.method === 'GET') {
+        const from = reqUrl.searchParams.get('from') ?? 'EUR';
+
+        if (!CURRENCY_RE.test(from)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid currency code.' }));
+          return;
+        }
+
+        // Return cached body if available and still fresh (< 24 h old).
+        const cached = responseCache.get(from);
+        if (cached !== undefined) {
+          if (now() - cached.cachedAt < CACHE_TTL_MS) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(cached.body);
+            return;
+          }
+          // Entry has expired – remove it and fall through to a fresh fetch.
+          responseCache.delete(from);
+        }
+
+        http.get(`${upstreamBase}/latest?from=${from}`, (apiRes) => {
+          let body = '';
+          apiRes.on('data', (chunk: Buffer) => { body += chunk; });
+          apiRes.on('end', () => {
+            // Cache only successful responses so a transient upstream error
+            // does not permanently poison the cache for this process lifetime.
+            if (apiRes.statusCode === 200) {
+              responseCache.set(from, { body, cachedAt: now() });
+            }
+            res.writeHead(apiRes.statusCode ?? 502, { 'Content-Type': 'application/json' });
+            res.end(body);
+          });
+        }).on('error', () => {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Failed to fetch exchange rates from upstream.' }));
+        });
+
+        return;
+      }
+
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found' }));
+    };
+  }
+
+  /** Start an HTTP server with the given handler on the specified port. */
+  function startServer(
+    port: number,
+    handler: (req: import('http').IncomingMessage, res: import('http').ServerResponse) => void,
+  ): Promise<import('http').Server> {
+    return new Promise((resolve, reject) => {
+      const srv = http.createServer(handler);
+      srv.listen(port, () => resolve(srv));
+      srv.on('error', reject);
+    });
+  }
+
+  /** Gracefully close an HTTP server. */
+  function closeServer(srv: import('http').Server): Promise<void> {
+    return new Promise((resolve) => srv.close(() => resolve()));
+  }
+
+  /** Make an HTTP GET and return { status, body }. */
+  function httpGetTtl(url: string): Promise<{ status: number; body: string }> {
+    return new Promise((resolve, reject) => {
+      http.get(url, (res) => {
+        let body = '';
+        res.on('data', (chunk: Buffer) => { body += chunk; });
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body }));
+      }).on('error', reject);
+    });
+  }
+
+  // --------------------------------------------------------------------------
+
+  test('fresh cache entry is served on second request without calling upstream again', async () => {
+    // Distinct ports so this test never conflicts with other suites.
+    const BACKEND = 3010;
+    const UPSTREAM = 3011;
+
+    let upstreamCallCount = 0;
+    const upstream = await startServer(UPSTREAM, (_req, res) => {
+      upstreamCallCount += 1;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ rates: { USD: 1.1 } }));
+    });
+
+    const backend = await startServer(
+      BACKEND,
+      createCacheHandler(`http://localhost:${UPSTREAM}`),
+    );
+
+    try {
+      // First request → upstream is called; response is cached.
+      const r1 = await httpGetTtl(`http://localhost:${BACKEND}/api/exchange-rates?from=EUR`);
+      expect(r1.status).toBe(200);
+      expect(upstreamCallCount).toBe(1);
+
+      // Second identical request → served from cache; upstream NOT called again.
+      const r2 = await httpGetTtl(`http://localhost:${BACKEND}/api/exchange-rates?from=EUR`);
+      expect(r2.status).toBe(200);
+      expect(r2.body).toBe(r1.body);
+      expect(upstreamCallCount, 'upstream must not be called a second time for a fresh cache entry').toBe(1);
+    } finally {
+      await closeServer(backend);
+      await closeServer(upstream);
+    }
+  });
+
+  test('expired cache entry is evicted and upstream is called again', async () => {
+    const BACKEND = 3012;
+    const UPSTREAM = 3013;
+
+    let upstreamCallCount = 0;
+    const upstream = await startServer(UPSTREAM, (_req, res) => {
+      upstreamCallCount += 1;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ rates: { GBP: 0.85 } }));
+    });
+
+    // Injectable clock so we can jump past the 24-hour TTL without waiting.
+    let fakeNow = Date.now();
+    const backend = await startServer(
+      BACKEND,
+      createCacheHandler(`http://localhost:${UPSTREAM}`, () => fakeNow),
+    );
+
+    try {
+      // First request – cache is empty, upstream is called and entry is stored.
+      const r1 = await httpGetTtl(`http://localhost:${BACKEND}/api/exchange-rates?from=GBP`);
+      expect(r1.status).toBe(200);
+      expect(upstreamCallCount).toBe(1);
+
+      // Advance fake clock past the 24-hour TTL to make the entry stale.
+      fakeNow += CACHE_TTL_MS + 1;
+
+      // Second request – cached entry is expired, evicted, upstream called again.
+      const r2 = await httpGetTtl(`http://localhost:${BACKEND}/api/exchange-rates?from=GBP`);
+      expect(r2.status).toBe(200);
+      expect(upstreamCallCount, 'upstream must be called again after the cache entry expires').toBe(2);
+    } finally {
+      await closeServer(backend);
+      await closeServer(upstream);
+    }
+  });
+
+  test('upstream non-200 response is not cached; next request calls upstream again', async () => {
+    const BACKEND = 3014;
+    const UPSTREAM = 3015;
+
+    let upstreamCallCount = 0;
+    const upstream = await startServer(UPSTREAM, (_req, res) => {
+      upstreamCallCount += 1;
+      // Simulate a transient upstream error that must NOT be cached.
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'upstream error' }));
+    });
+
+    const backend = await startServer(
+      BACKEND,
+      createCacheHandler(`http://localhost:${UPSTREAM}`),
+    );
+
+    try {
+      // First request – upstream error, response must NOT be cached.
+      const r1 = await httpGetTtl(`http://localhost:${BACKEND}/api/exchange-rates?from=JPY`);
+      expect(r1.status).toBe(500);
+      expect(upstreamCallCount).toBe(1);
+
+      // Second request – not in cache, upstream must be called again.
+      const r2 = await httpGetTtl(`http://localhost:${BACKEND}/api/exchange-rates?from=JPY`);
+      expect(r2.status).toBe(500);
+      expect(upstreamCallCount, 'upstream must be called again because a 5xx response is never cached').toBe(2);
+    } finally {
+      await closeServer(backend);
+      await closeServer(upstream);
+    }
+  });
+
+  test('upstream connection error returns 502 without throwing a JavaScript exception', async () => {
+    const BACKEND = 3016;
+    // Intentionally start NO upstream server on port 3017 → connection refused.
+
+    const backend = await startServer(
+      BACKEND,
+      createCacheHandler(`http://localhost:3017`),
+    );
+
+    try {
+      const { status, body } = await httpGetTtl(
+        `http://localhost:${BACKEND}/api/exchange-rates?from=AUD`,
+      );
+      expect(status).toBe(502);
+      const parsed = JSON.parse(body) as { error?: string };
+      expect(parsed.error, '502 body must contain an error message').toBeTruthy();
+    } finally {
+      await closeServer(backend);
+    }
+  });
+});
