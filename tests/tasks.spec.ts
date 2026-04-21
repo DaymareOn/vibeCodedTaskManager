@@ -101,6 +101,7 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { DEFAULT_BINDINGS } from '../src/utils/keyboardConfig';
 
@@ -1564,7 +1565,7 @@ test.describe('Data migration sanitizer', () => {
     await clearTasksOnly(page);
 
     // Write the legacy plain-array to a temporary file and import it via the UI.
-    const tmpPath = '/tmp/legacy-tasks-import.json';
+    const tmpPath = path.join(os.tmpdir(), 'legacy-tasks-import.json');
     fs.writeFileSync(tmpPath, JSON.stringify(LEGACY_TASKS_PLAIN_ARRAY));
 
     const [fileChooser] = await Promise.all([
