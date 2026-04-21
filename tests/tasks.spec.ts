@@ -1815,8 +1815,9 @@ test.describe('Backend exchange-rate proxy integration', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Backend server unit tests', () => {
-  const BACKEND_PORT = 3002; // use a different port so it does not clash with the dev server
-
+  // Port 3002: avoids clash with the production backend (3001) and the app
+  // preview server (4173).  Suite 21 uses ports 3010-3017 for TTL tests.
+  const BACKEND_PORT = 3002;
   /** Start a local test instance of server.js on BACKEND_PORT. */
   function startBackend(): Promise<import('http').Server> {
     return new Promise((resolve, reject) => {
@@ -1833,9 +1834,9 @@ test.describe('Backend server unit tests', () => {
             res.end(JSON.stringify({ error: 'Invalid currency code.' }));
             return;
           }
-          // Proxy to Frankfurter – but during tests we intercept at the
-          // playwright level so the real upstream is never called.
-          // For the unit tests below we fulfil via a mock upstream server.
+          // Suite 20 tests only validate routing and status codes, not caching
+          // behaviour.  A static fixture is sufficient; Suite 21 uses a full
+          // mock-upstream server to test the TTL cache logic.
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ rates: { USD: 1.1 } }));
           return;
@@ -1855,7 +1856,7 @@ test.describe('Backend server unit tests', () => {
     return new Promise((resolve, reject) => {
       http.get(url, (res) => {
         let body = '';
-        res.on('data', (chunk) => { body += chunk; });
+        res.on('data', (chunk: Buffer) => { body += chunk; });
         res.on('end', () => resolve({ status: res.statusCode ?? 0, body }));
       }).on('error', reject);
     });
