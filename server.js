@@ -11,6 +11,18 @@
  *
  * Port: 3001 (Vite dev server stays on its default 5173; the Vite proxy
  *             forwards /api/* from 5173 → 3001 during development).
+ *
+ * Response cache
+ * ──────────────
+ * `responseCache` maps a currency code (e.g. "EUR") to the raw JSON body
+ * returned by Frankfurter for that base currency.  Entries are written on
+ * the first successful upstream response and read for every subsequent
+ * identical request within the same server-process lifetime.
+ *
+ * Consequence for E2E tests: the backend process is started once per test
+ * suite run (by the Vite plugin in vite.config.ts).  Because every test that
+ * requests the same base currency shares the same process, Frankfurter is
+ * contacted at most once per unique currency code per test suite execution.
  */
 
 import https from 'https';
@@ -21,6 +33,13 @@ const PORT = 3001;
 
 /** Only accept well-formed ISO 4217 codes (3 uppercase ASCII letters). */
 const CURRENCY_RE = /^[A-Z]{3}$/;
+
+/**
+ * In-process response cache.
+ * Key:   ISO 4217 currency code (e.g. "EUR")
+ * Value: raw JSON body received from Frankfurter for that base currency
+ */
+const responseCache = new Map<string, string>();
 
 const server = http.createServer((req, res) => {
   const reqUrl = new URL(req.url ?? '/', `http://localhost:${PORT}`);
@@ -36,6 +55,14 @@ const server = http.createServer((req, res) => {
       return;
     }
 
+    // Return cached body if available (no upstream call needed).
+    const cached = responseCache.get(from);
+    if (cached !== undefined) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(cached);
+      return;
+    }
+
     const apiUrl = `https://api.frankfurter.app/latest?from=${from}`;
 
     https
@@ -45,6 +72,11 @@ const server = http.createServer((req, res) => {
           body += chunk;
         });
         apiRes.on('end', () => {
+          // Cache only successful responses so a transient upstream error
+          // does not permanently poison the cache for this process lifetime.
+          if (apiRes.statusCode === 200) {
+            responseCache.set(from, body);
+          }
           res.writeHead(apiRes.statusCode ?? 502, {
             'Content-Type': 'application/json',
           });
