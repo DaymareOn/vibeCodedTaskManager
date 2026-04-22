@@ -57,7 +57,17 @@ export const StorageManager = {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       if (data) {
-        return parseStoredData(data);
+        const parsed: unknown = JSON.parse(data);
+        const fromVersion: string = Array.isArray(parsed)
+          ? '0.0.0'
+          : ((parsed as Partial<StoredData>).dataVersion ?? '0.0.0');
+        const tasks = parseStoredData(data);
+        // Re-save migrated data so that future loads skip migrations and
+        // so that the stored version reflects the current DATA_VERSION.
+        if (fromVersion !== DATA_VERSION) {
+          StorageManager.saveTasks(tasks);
+        }
+        return tasks;
       }
       // Seed with sample tasks only on first install (when seeded flag is not set)
       const seeded = localStorage.getItem(SEEDED_FLAG_KEY);

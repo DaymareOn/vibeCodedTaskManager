@@ -271,6 +271,7 @@ export const TaskForm = (
   // Depends-on selector
   const dependsOnLabel = DOM.create('label', 'form-label', t('form.dependsOn'));
   const dependsOnSelect = DOM.create('select', 'form-input') as HTMLSelectElement;
+  dependsOnSelect.dataset.field = 'dependsOn';
   const noneOpt = document.createElement('option');
   noneOpt.value = '';
   noneOpt.textContent = t('form.dependsOnNone');
