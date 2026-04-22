@@ -72,6 +72,8 @@ export const en_US: Record<string, string> = {
   'form.addTask': 'Add Task',
   'form.addSubTask': 'Add Sub-task',
   'form.assignee': 'Assignee (optional)',
+  'form.dependsOn': 'Depends on (optional)',
+  'form.dependsOnNone': 'None – no dependency',
   'form.statusTodo': '⬜ To Do',
   'form.statusInProgress': '🔄 In Progress',
   'form.statusDone': '✅ Done',

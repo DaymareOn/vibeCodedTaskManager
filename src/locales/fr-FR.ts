@@ -72,6 +72,8 @@ export const fr_FR: Record<string, string> = {
   'form.addTask': 'Ajouter la tâche',
   'form.addSubTask': 'Ajouter la sous-tâche',
   'form.assignee': 'Responsable (optionnel)',
+  'form.dependsOn': 'Dépend de (optionnel)',
+  'form.dependsOnNone': 'Aucune – pas de dépendance',
   'form.statusTodo': '⬜ À faire',
   'form.statusInProgress': '🔄 En cours',
   'form.statusDone': '✅ Terminé',
