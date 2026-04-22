@@ -114,6 +114,15 @@
  *     1. Responds 400 for an invalid (non-ISO-4217) currency code.
  *     2. Proxies a successful Frankfurter response to the caller.
  *     3. Returns 404 for unknown paths.
+ *
+ * Test suite 22 – Task dependency (dependsOn) feature
+ *   Browser E2E tests. Verifies that:
+ *     1. The "Depends on" select is present in add-task and edit forms without JS errors.
+ *     2. A dependency set via the edit form is persisted through auto-save and reload.
+ *     3. When task A depends on task B and A has higher raw priority, B is boosted and
+ *        shown before A in the Timeline.
+ *     4. The migration sanitizer strips an invalid (non-string) dependsOn value from
+ *        v0.1.2 data without browser console errors or exceptions.
  */
 
 import { test, expect } from '@playwright/test';
@@ -2314,5 +2323,244 @@ test.describe('Assignee field in TaskForm', () => {
     await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
     await expect(page.locator('.edit-task-column input[placeholder="Assignee (optional)"]')).toHaveValue('Alice', { timeout: 3_000 });
     expect(errors).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite 22 – Task dependency (dependsOn) feature
+//   Browser E2E tests. Verifies that:
+//     1. The "Depends on" select is visible in the add-task form and the edit
+//        form, and no JavaScript exceptions occur.
+//     2. A task dependency can be set via the edit form and survives an
+//        auto-save round-trip (the field value is restored on next open).
+//     3. When task A depends on task B and A has a higher raw priority score
+//        than B, B's boosted score causes it to appear before A in the
+//        Timeline (dependency-priority boost rule).
+//     4. The migration sanitizer correctly strips an invalid dependsOn value
+//        (non-string) from v0.1.2 stored data without browser console errors.
+// ---------------------------------------------------------------------------
+
+/** Helper: fill the minimum required score fields so a task can be submitted. */
+async function fillMinReqFields(
+  page: import('@playwright/test').Page,
+  opts: { value?: string; deliveryOffsetDays?: number } = {},
+): Promise<void> {
+  const value = opts.value ?? '100';
+  const days = opts.deliveryOffsetDays ?? 30;
+
+  await page.fill('input[placeholder="Amount (e.g. 1500)"]', value);
+
+  const deliveryDate = new Date();
+  deliveryDate.setDate(deliveryDate.getDate() + days);
+  await page.locator('.form-score-section input[type="date"]').fill(deliveryDate.toISOString().slice(0, 10));
+
+  // Remaining estimate hours field (index 4 of duration inputs in the last duration-builder)
+  await page.locator('.form-score-section .duration-builder').last().locator('.duration-num').nth(4).fill('1');
+}
+
+test.describe('Task dependency (dependsOn) feature', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await clearTasksOnly(page);
+    await page.waitForSelector('.tools-column', { timeout: 10_000 });
+  });
+
+  test('dependsOn select is visible in the add-task form without JS errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    await page.locator('.timeline-body').click({ position: { x: 100, y: 100 } });
+    await expect(page.locator('.modal-overlay .task-form')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('.modal-overlay select[data-field="dependsOn"]')).toBeVisible();
+
+    const firstOptionText = await page.locator('.modal-overlay select[data-field="dependsOn"] option').first().textContent();
+    expect(firstOptionText).toContain('None');
+
+    expect(errors, `JS errors while opening add-task form:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('dependsOn select in edit form lists other tasks (not itself)', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    // Create Task B (the blocker)
+    await page.locator('.timeline-body').click({ position: { x: 100, y: 100 } });
+    await expect(page.locator('.modal-overlay .task-form')).toBeVisible({ timeout: 5_000 });
+    await page.fill('input[placeholder="Task title"]', 'Blocker Task Dep');
+    await fillMinReqFields(page);
+    await page.click('button[type="submit"]');
+    await expect(page.locator('.task-rect .task-title', { hasText: 'Blocker Task Dep' }).first()).toBeVisible({ timeout: 5_000 });
+
+    // Open it in the edit column
+    await page.locator('.task-rect', { has: page.locator('.task-title', { hasText: 'Blocker Task Dep' }) }).first().click();
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
+
+    // The dependsOn select should exist and have only "None" (only one task, itself excluded)
+    const depSelect = page.locator('.edit-task-column select[data-field="dependsOn"]');
+    await expect(depSelect).toBeVisible({ timeout: 3_000 });
+    const optionCount = await depSelect.locator('option').count();
+    expect(optionCount).toBe(1); // only the "None" option
+
+    expect(errors, `JS errors in dependsOn edit form test:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('can set and persist a dependency via the edit form (auto-save)', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    // Create Task B (blocker)
+    await page.locator('.timeline-body').click({ position: { x: 100, y: 100 } });
+    await expect(page.locator('.modal-overlay .task-form')).toBeVisible({ timeout: 5_000 });
+    await page.fill('input[placeholder="Task title"]', 'Blocker B Persist');
+    await fillMinReqFields(page, { value: '10', deliveryOffsetDays: 365 });
+    await page.click('button[type="submit"]');
+    await expect(page.locator('.task-rect .task-title', { hasText: 'Blocker B Persist' }).first()).toBeVisible({ timeout: 5_000 });
+
+    // Create Task A (dependent)
+    await page.locator('.timeline-body').click({ position: { x: 100, y: 100 } });
+    await expect(page.locator('.modal-overlay .task-form')).toBeVisible({ timeout: 5_000 });
+    await page.fill('input[placeholder="Task title"]', 'Dependent A Persist');
+    await fillMinReqFields(page, { value: '50000', deliveryOffsetDays: 3 });
+    await page.click('button[type="submit"]');
+    await expect(page.locator('.task-rect .task-title', { hasText: 'Dependent A Persist' }).first()).toBeVisible({ timeout: 5_000 });
+
+    // Open Task A in the edit column
+    await page.locator('.task-rect', { has: page.locator('.task-title', { hasText: 'Dependent A Persist' }) }).first().click();
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
+
+    // Set dependency: A depends on B
+    const depSelect = page.locator('.edit-task-column select[data-field="dependsOn"]');
+    await expect(depSelect).toBeVisible({ timeout: 3_000 });
+    await depSelect.selectOption({ label: 'Blocker B Persist' });
+
+    // Wait for auto-save debounce (400 ms) + buffer
+    await page.waitForTimeout(800);
+
+    // Reload and re-open Task A to verify persistence
+    await page.reload();
+    await page.waitForSelector('.task-rect', { timeout: 10_000 });
+    await page.locator('.task-rect', { has: page.locator('.task-title', { hasText: 'Dependent A Persist' }) }).first().click();
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
+
+    const editDepSelect = page.locator('.edit-task-column select[data-field="dependsOn"]');
+    await expect(editDepSelect).toBeVisible({ timeout: 3_000 });
+    const selectedLabel = await editDepSelect.evaluate((el: HTMLSelectElement) =>
+      el.options[el.selectedIndex]?.text ?? '',
+    );
+    expect(selectedLabel).toContain('Blocker B Persist');
+
+    expect(errors, `JS errors during dependency save/reload:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('priority boost: B appears before A in Timeline after A is set to depend on B', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    // Create Task B: low raw priority (value=1, deadline=365 days)
+    await page.locator('.timeline-body').click({ position: { x: 100, y: 100 } });
+    await expect(page.locator('.modal-overlay .task-form')).toBeVisible({ timeout: 5_000 });
+    await page.fill('input[placeholder="Task title"]', 'Boost Test Blocker B');
+    await fillMinReqFields(page, { value: '1', deliveryOffsetDays: 365 });
+    await page.click('button[type="submit"]');
+    await expect(page.locator('.task-rect .task-title', { hasText: 'Boost Test Blocker B' }).first()).toBeVisible({ timeout: 5_000 });
+
+    // Create Task A: high raw priority (value=50000, deadline=2 days)
+    await page.locator('.timeline-body').click({ position: { x: 100, y: 100 } });
+    await expect(page.locator('.modal-overlay .task-form')).toBeVisible({ timeout: 5_000 });
+    await page.fill('input[placeholder="Task title"]', 'Boost Test Dependent A');
+    await fillMinReqFields(page, { value: '50000', deliveryOffsetDays: 2 });
+    await page.click('button[type="submit"]');
+    await expect(page.locator('.task-rect .task-title', { hasText: 'Boost Test Dependent A' }).first()).toBeVisible({ timeout: 5_000 });
+
+    // Verify initial order: A before B (A has higher raw score)
+    const initialTitles = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.task-rect .task-title')).map((el) => el.textContent ?? ''),
+    );
+    const idxA0 = initialTitles.findIndex((t) => t.includes('Boost Test Dependent A'));
+    const idxB0 = initialTitles.findIndex((t) => t.includes('Boost Test Blocker B'));
+    expect(idxA0, 'Task A should be before Task B initially (higher raw score)').toBeLessThan(idxB0);
+
+    // Open Task A in the edit column
+    await page.locator('.task-rect', { has: page.locator('.task-title', { hasText: 'Boost Test Dependent A' }) }).first().click();
+    await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
+
+    // Set dependency: A depends on B
+    const depSelect = page.locator('.edit-task-column select[data-field="dependsOn"]');
+    await expect(depSelect).toBeVisible({ timeout: 3_000 });
+    await depSelect.selectOption({ label: 'Boost Test Blocker B' });
+
+    // Wait for auto-save + re-render
+    await page.waitForTimeout(1000);
+
+    // Verify new order: B before A (B is boosted above A)
+    const afterTitles = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.task-rect .task-title')).map((el) => el.textContent ?? ''),
+    );
+    const idxA1 = afterTitles.findIndex((t) => t.includes('Boost Test Dependent A'));
+    const idxB1 = afterTitles.findIndex((t) => t.includes('Boost Test Blocker B'));
+    expect(idxB1, 'Task B (blocker) should appear before Task A (dependent) after dependency boost').toBeLessThan(idxA1);
+
+    expect(errors, `JS errors during priority boost test:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('migration sanitizer strips non-string dependsOn from v0.1.2 data without errors', async ({ page }) => {
+    const problems: string[] = [];
+    page.on('pageerror', (err) => problems.push(`[pageerror] ${err.message}`));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') problems.push(`[console.error] ${msg.text()}`);
+    });
+
+    // Intercept exchange-rate API so no backend-unreachable error is produced.
+    await page.route('**/api/exchange-rates**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ rates: { USD: 1.1, GBP: 0.85 } }),
+      }),
+    );
+
+    const v012Data = {
+      dataVersion: '0.1.2',
+      tasks: [
+        {
+          id: '00000000-0000-0000-0000-aabbccddeeff',
+          title: 'Migration DependsOn Test',
+          description: '',
+          status: 'todo',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          tags: [],
+          taskValue: { type: 'direct', amount: { amount: 100, currency: 'EUR' } },
+          targetDelivery: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+          remainingEstimate: { iso: 'PT1H' },
+          dependsOn: 12345, // invalid – number instead of string, must be stripped
+        },
+      ],
+    };
+
+    await page.evaluate((data) => {
+      localStorage.setItem('tasks_data', JSON.stringify(data));
+      localStorage.setItem('tasks_seeded', 'true');
+    }, v012Data);
+    await page.reload();
+
+    await expect(
+      page.locator('.task-rect .task-title', { hasText: 'Migration DependsOn Test' }).first(),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Confirm the invalid dependsOn was stripped during migration and re-save occurred
+    const dependsOnValue = await page.evaluate(() => {
+      const raw = localStorage.getItem('tasks_data');
+      if (!raw) return 'NO_DATA';
+      const envelope = JSON.parse(raw) as { tasks?: Array<Record<string, unknown>> };
+      const task = envelope.tasks?.find((t) => t.title === 'Migration DependsOn Test');
+      return task?.dependsOn ?? null;
+    });
+    expect(dependsOnValue).toBeNull();
+
+    expect(
+      problems,
+      `Unexpected errors after v0.1.2→v0.1.3 migration with invalid dependsOn:\n${problems.join('\n')}`,
+    ).toHaveLength(0);
   });
 });

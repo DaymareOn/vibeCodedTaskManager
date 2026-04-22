@@ -50,6 +50,8 @@ export interface Task {
   completedAt?: string;
   /** Optional person or team assigned to this task */
   assignee?: string;
+  /** ID of another task that must be completed before this task can begin */
+  dependsOn?: string;
 }
 
 export interface TaskFilter {

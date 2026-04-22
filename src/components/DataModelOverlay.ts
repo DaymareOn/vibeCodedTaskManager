@@ -73,7 +73,7 @@ function buildClassDiagramSVG(): string {
 
   <!-- Task class (center-top) -->
   <g transform="translate(300, 20)">
-    <rect x="0" y="0" width="280" height="300" rx="6" fill="var(--bg-secondary, #2d2d2d)" stroke="var(--primary, #6c8ebf)" stroke-width="2"/>
+    <rect x="0" y="0" width="280" height="316" rx="6" fill="var(--bg-secondary, #2d2d2d)" stroke="var(--primary, #6c8ebf)" stroke-width="2"/>
     <rect x="0" y="0" width="280" height="32" rx="6" fill="var(--primary, #6c8ebf)" opacity="0.85"/>
     <rect x="0" y="22" width="280" height="10" fill="var(--primary, #6c8ebf)" opacity="0.85"/>
     <text x="140" y="22" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="monospace">Task</text>
@@ -93,8 +93,9 @@ function buildClassDiagramSVG(): string {
     <text x="10" y="244" fill="var(--text-muted, #888)" font-size="11" font-family="monospace" font-style="italic">completedAt?: string (ISO 8601)</text>
     <text x="10" y="260" fill="var(--text-muted, #888)" font-size="11" font-family="monospace" font-style="italic">parentId?: string</text>
     <text x="10" y="276" fill="var(--text-muted, #888)" font-size="11" font-family="monospace" font-style="italic">assignee?: string</text>
-    <line x1="0" y1="286" x2="280" y2="286" stroke="var(--primary, #6c8ebf)" stroke-width="0.5" opacity="0.4"/>
-    <text x="140" y="298" text-anchor="middle" fill="var(--text-muted, #888)" font-size="10" font-family="monospace" font-style="italic">italic = optional fields</text>
+    <text x="10" y="292" fill="var(--text-muted, #888)" font-size="11" font-family="monospace" font-style="italic">dependsOn?: string</text>
+    <line x1="0" y1="302" x2="280" y2="302" stroke="var(--primary, #6c8ebf)" stroke-width="0.5" opacity="0.4"/>
+    <text x="140" y="314" text-anchor="middle" fill="var(--text-muted, #888)" font-size="10" font-family="monospace" font-style="italic">italic = optional fields</text>
   </g>
 
   <!-- TaskStatus enum (top-right) -->
@@ -200,6 +201,11 @@ function buildClassDiagramSVG(): string {
   <text x="760" y="195" fill="var(--primary, #6c8ebf)" font-size="10" font-family="monospace">parentId?</text>
   <text x="760" y="207" fill="var(--primary, #6c8ebf)" font-size="10" font-family="monospace">(sub-task)</text>
 
+  <!-- Task.dependsOn self-reference (dependency) -->
+  <path d="M 580 292 Q 895 292 895 230 Q 895 168 580 176" stroke="var(--primary, #6c8ebf)" stroke-width="1.5" fill="none" stroke-dasharray="5 3" marker-end="url(#dmo-arrow)"/>
+  <text x="762" y="238" fill="var(--primary, #6c8ebf)" font-size="10" font-family="monospace">dependsOn?</text>
+  <text x="762" y="250" fill="var(--primary, #6c8ebf)" font-size="10" font-family="monospace">(blocker task)</text>
+
   <!-- Legend -->
   <g transform="translate(630, 180)">
     <rect x="0" y="0" width="220" height="200" rx="6" fill="var(--bg-secondary, #2d2d2d)" stroke="var(--border, #444)" stroke-width="1"/>
@@ -225,7 +231,7 @@ function buildClassDiagramSVG(): string {
     <line x1="10" y1="158" x2="28" y2="158" stroke="var(--text-muted, #888)" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#dmo-arrow)"/>
     <text x="34" y="162" fill="var(--text, #e0e0e0)" font-size="10" font-family="monospace">Optional reference</text>
     <!-- Schema version -->
-    <text x="10" y="182" fill="var(--text-muted, #888)" font-size="10" font-family="monospace">Schema: v0.1.2</text>
+    <text x="10" y="182" fill="var(--text-muted, #888)" font-size="10" font-family="monospace">Schema: v0.1.3</text>
     <text x="10" y="194" fill="var(--text-muted, #888)" font-size="10" font-family="monospace">italic = optional fields</text>
   </g>
 </svg>`;

@@ -161,6 +161,56 @@ export function formatNumber(amount: number): string {
 }
 
 /**
+ * Compute dependency-boosted priority scores for a collection of tasks.
+ *
+ * Rule: if task A has `dependsOn = B.id` AND score(A) > score(B), then
+ * score(B) is raised to score(A) + 1.  Applied iteratively until stable
+ * so that chains (A→B→C) are fully propagated.
+ *
+ * @param tasks         All tasks (root-level and sub-tasks).
+ * @param mainCurrency  ISO 4217 code for the display currency.
+ * @param rates         Exchange-rate map from the store.
+ * @param priorityCoefficient  Passed through to `computePriorityScoreConverted`.
+ * @param now           Current timestamp in ms (injectable for testing).
+ * @returns A Map from task ID to its final (possibly boosted) priority score.
+ */
+export function computeBoostedScores(
+  tasks: Task[],
+  mainCurrency: string,
+  rates: Record<string, number>,
+  priorityCoefficient = 1.0,
+  now = Date.now(),
+): Map<string, number> {
+  const scores = new Map<string, number>();
+  for (const task of tasks) {
+    scores.set(task.id, computePriorityScoreConverted(task, mainCurrency, rates, priorityCoefficient, now));
+  }
+
+  // Iteratively apply the boost until no more changes occur (handles chains).
+  // The maximum number of iterations is bounded by tasks.length to guard against
+  // circular dependencies (A→B→A) that would otherwise cause an infinite loop.
+  const maxIterations = tasks.length;
+  let iterations = 0;
+  let changed = true;
+  while (changed && iterations < maxIterations) {
+    changed = false;
+    iterations++;
+    for (const task of tasks) {
+      if (!task.dependsOn) continue;
+      const scoreA = scores.get(task.id) ?? 0;
+      const scoreB = scores.get(task.dependsOn);
+      if (scoreB === undefined) continue; // dependency not found in this task set
+      if (scoreA > scoreB) {
+        scores.set(task.dependsOn, scoreA + 1);
+        changed = true;
+      }
+    }
+  }
+
+  return scores;
+}
+
+/**
  * Compute the priority score for a task, with the monetary value converted to the main currency.
  *
  * This is identical to `computePriorityScore` but uses `computeTaskValueConverted` so that the

@@ -80,6 +80,23 @@ const MIGRATIONS: Migration[] = [
       return result;
     }),
   },
+  {
+    fromVersion: '0.1.2',
+    toVersion: '0.1.3',
+    up: (tasks) => tasks.map((t) => {
+      const task = t as Record<string, unknown>;
+      const result = { ...task };
+      // Sanitize dependsOn: must be a non-empty string if present, or omit it
+      if (result.dependsOn !== undefined && typeof result.dependsOn !== 'string') {
+        delete result.dependsOn;
+      }
+      if (typeof result.dependsOn === 'string') {
+        result.dependsOn = result.dependsOn.trim().slice(0, 36);
+        if (!result.dependsOn) delete result.dependsOn;
+      }
+      return result;
+    }),
+  },
   // Future migrations go here, e.g.:
   //   {
   //     fromVersion: '0.1.0',
