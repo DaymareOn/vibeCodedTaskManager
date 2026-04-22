@@ -57,7 +57,7 @@ export const CONCEPT_DEFS: ConceptDef[] = [
     title: 'Priority Score ⚡',
     emoji: '⚡',
     defaultDescription:
-      'A computed importance metric. It combines the task monetary value (converted to your main currency), urgency (time remaining to target delivery), and remaining estimated effort. Higher = more important.',
+      'A computed importance metric. It combines the task monetary value (converted to your main currency), urgency (time remaining to target delivery), and remaining estimated effort. Higher = more important. If task A depends on task B and A has a higher score, B\'s score is automatically boosted to A + 1 so that blockers always rank above their dependants.',
   },
   {
     id: 'task-value',
