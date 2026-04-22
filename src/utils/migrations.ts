@@ -64,6 +64,22 @@ const MIGRATIONS: Migration[] = [
     // solely to keep the migration chain contiguous up to DATA_VERSION.
     up: (tasks) => tasks,
   },
+  {
+    fromVersion: '0.1.1',
+    toVersion: '0.1.2',
+    up: (tasks) => tasks.map((t) => {
+      const task = t as Record<string, unknown>;
+      // Sanitize assignee: must be a string if present, or omit it
+      const result = { ...task };
+      if (result.assignee !== undefined && typeof result.assignee !== 'string') {
+        delete result.assignee;
+      }
+      if (typeof result.assignee === 'string') {
+        result.assignee = result.assignee.trim().slice(0, 200);
+      }
+      return result;
+    }),
+  },
   // Future migrations go here, e.g.:
   //   {
   //     fromVersion: '0.1.0',

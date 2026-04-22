@@ -29,9 +29,14 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   // Keyboard
   'key:F1':             'Open keyboard & mouse reference overlay',
   'key:F2':             'Open concepts & glossary overlay',
+  'key:F3':             'Open data model class diagram overlay',
   'key:Escape':         'Close modal / overlay',
   'key:ArrowLeft':      'History scrubber: go to previous recorded version (when scrubber is focused)',
   'key:ArrowRight':     'History scrubber: go to next recorded version (when scrubber is focused)',
+  'key:ArrowUp':        'Navigate to next-higher-priority task (when Edit column is open, no text field focused)',
+  'key:ArrowDown':      'Navigate to next-lower-priority task (when Edit column is open, no text field focused)',
+  'key:d':              'Delete focused task (when Edit column is open, no text field focused)',
+  'key:c':              'Create new task on Timeline, or sub-task when hovering a task bar',
   'key:Ctrl+Wheel':     'Horizontal zoom (keeps the time under the cursor fixed)',
   'key:Shift+Wheel':    'Vertical zoom (adjusts task bar height)',
 };

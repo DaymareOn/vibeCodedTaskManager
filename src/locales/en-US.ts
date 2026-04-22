@@ -71,6 +71,7 @@ export const en_US: Record<string, string> = {
   'form.startDate': 'Start date (optional)',
   'form.addTask': 'Add Task',
   'form.addSubTask': 'Add Sub-task',
+  'form.assignee': 'Assignee (optional)',
   'form.statusTodo': '⬜ To Do',
   'form.statusInProgress': '🔄 In Progress',
   'form.statusDone': '✅ Done',
@@ -92,6 +93,13 @@ export const en_US: Record<string, string> = {
   'concepts.title': '💡 Concepts & Glossary',
   'concepts.closeHint': 'Press Esc to close.',
   'concepts.close': 'Close',
+
+  // Data model overlay
+  'dataModel.title': '📐 Data Model Class Diagram',
+  'dataModel.closeHint': 'Press Esc to close.',
+  'dataModel.close': 'Close',
+  'tools.dataModelKey': '📐 Data model diagram (F3)',
+  'tools.openDataModel': '📐 Open data model diagram',
 
   // Input device labels
   'device.keyboardMouse': 'Keyboard & Mouse',

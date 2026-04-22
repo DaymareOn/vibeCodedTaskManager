@@ -213,7 +213,12 @@ export const ToolsColumn = (): HTMLElement => {
     document.dispatchEvent(new CustomEvent('open-concepts-overlay'));
   });
 
-  DOM.append(overlaysSection, overlaysSectionHeader, helpKeyRow, openHelpBtn, conceptsKeyRow, openConceptsBtn);
+  const openDataModelBtn = DOM.create('button', 'btn btn-secondary tools-open-help-btn', t('tools.openDataModel'));
+  openDataModelBtn.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('open-datamodel-overlay'));
+  });
+
+  DOM.append(overlaysSection, overlaysSectionHeader, helpKeyRow, openHelpBtn, conceptsKeyRow, openConceptsBtn, openDataModelBtn);
 
   // ---- Language / Locale section ----
   const localeSectionHeader = DOM.create('div', 'tools-section-header', t('tools.locale'));
@@ -320,6 +325,7 @@ export const ToolsColumn = (): HTMLElement => {
     conceptsKeyLabel.textContent     = t('tools.conceptsKey');
     openHelpBtn.textContent          = t('tools.openKeyboard');
     openConceptsBtn.textContent      = t('tools.openConcepts');
+    openDataModelBtn.textContent     = t('tools.openDataModel');
     countryLabel.textContent         = t('tools.country');
     langLabel.textContent            = t('tools.language');
     // Theme buttons

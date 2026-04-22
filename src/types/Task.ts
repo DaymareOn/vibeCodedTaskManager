@@ -48,6 +48,8 @@ export interface Task {
   startDate?: string;
   /** ISO date string set when the task transitions to 'done' or 'cancelled' */
   completedAt?: string;
+  /** Optional person or team assigned to this task */
+  assignee?: string;
 }
 
 export interface TaskFilter {

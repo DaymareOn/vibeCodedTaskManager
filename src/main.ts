@@ -6,9 +6,13 @@ import { EditTaskColumn } from './components/EditTaskColumn';
 import { Timeline } from './components/Timeline';
 import { KeyboardOverlay } from './components/KeyboardOverlay';
 import { ConceptsOverlay } from './components/ConceptsOverlay';
+import { TaskForm } from './components/TaskForm';
 import { KeyboardConfigManager } from './utils/keyboardConfig';
 import { ConceptsConfigManager } from './utils/conceptsConfig';
+import { DataModelOverlay } from './components/DataModelOverlay';
 import { DOM } from './utils/dom';
+import { showModal } from './utils/modal';
+import { t } from './utils/i18n';
 import type { Theme } from './store/taskStore';
 import { computePriorityScore } from './utils/priority';
 
@@ -27,14 +31,16 @@ app.className = 'app-layout';
 
 const toolsColumn     = ToolsColumn();
 const editTaskColumn  = EditTaskColumn();
-const timeline        = Timeline(editTaskColumn.openTask);
+const { element: timelineEl, getHoveredTaskId } = Timeline(editTaskColumn.openTask);
 const keyboardOverlay = KeyboardOverlay();
 const conceptsOverlay = ConceptsOverlay();
+const dataModelOverlay = DataModelOverlay();
 
-DOM.append(app, toolsColumn, timeline, editTaskColumn.element);
+DOM.append(app, toolsColumn, timelineEl, editTaskColumn.element);
 // Overlays are mounted at body level so they sit above everything
 document.body.appendChild(keyboardOverlay.element);
 document.body.appendChild(conceptsOverlay.element);
+document.body.appendChild(dataModelOverlay.element);
 
 // Load persisted data
 useTaskStore.getState().loadTasks();
@@ -49,6 +55,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (keyboardOverlay.isOpen()) { keyboardOverlay.close(); return; }
     if (conceptsOverlay.isOpen()) { conceptsOverlay.close(); return; }
+    if (dataModelOverlay.isOpen()) { dataModelOverlay.close(); return; }
     return;
   }
 
@@ -87,6 +94,38 @@ document.addEventListener('keydown', (e) => {
 
   if (isTextFocused) return;
 
+  if (!isTextFocused && e.key === 'c') {
+    e.preventDefault();
+    const hoveredTaskId = getHoveredTaskId();
+    const tasks = useTaskStore.getState().tasks;
+    const hoveredTask = hoveredTaskId ? tasks.find((task) => task.id === hoveredTaskId) : null;
+
+    if (hoveredTask) {
+      let closeSub: () => void;
+      const subForm = TaskForm(
+        (subData) => {
+          useTaskStore.getState().addTask({ ...subData, parentId: hoveredTask.id });
+          closeSub();
+        },
+        undefined,
+        t('form.addSubTask'),
+      );
+      closeSub = showModal(subForm.element);
+    } else {
+      let closeAdd: () => void;
+      const addForm = TaskForm(
+        (taskData) => {
+          useTaskStore.getState().addTask(taskData);
+          closeAdd();
+        },
+        undefined,
+        t('form.addTask'),
+      );
+      closeAdd = showModal(addForm.element);
+    }
+    return;
+  }
+
   const helpKey     = KeyboardConfigManager.get().helpKey;
   const conceptsKey = ConceptsConfigManager.get().conceptsKey;
 
@@ -101,9 +140,16 @@ document.addEventListener('keydown', (e) => {
     if (!keyboardOverlay.isOpen()) conceptsOverlay.open();
     return;
   }
+
+  if (e.key === 'F3' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault();
+    if (!conceptsOverlay.isOpen() && !keyboardOverlay.isOpen()) dataModelOverlay.open();
+    return;
+  }
 });
 
 // ---- Custom events from ToolsColumn buttons ----
 document.addEventListener('open-keyboard-overlay', () => { keyboardOverlay.open(); });
 document.addEventListener('open-concepts-overlay', () => { conceptsOverlay.open(); });
+document.addEventListener('open-datamodel-overlay', () => { dataModelOverlay.open(); });
 

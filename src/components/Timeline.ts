@@ -66,7 +66,12 @@ function escapeHtml(str: string): string {
 }
 
 // -------- Timeline component --------
-export const Timeline = (onEditTask?: (task: Task) => void): HTMLElement => {
+export interface TimelineApi {
+  element: HTMLElement;
+  getHoveredTaskId: () => string | null;
+}
+
+export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
   const outer = DOM.create('div', 'timeline');
   const ruler = DOM.create('div', 'timeline-ruler');
 
@@ -585,5 +590,5 @@ export const Timeline = (onEditTask?: (task: Task) => void): HTMLElement => {
     renderCanvas();
   }, LAYOUT_SETTLE_DELAY);
 
-  return outer;
+  return { element: outer, getHoveredTaskId: () => hoverTaskId };
 };

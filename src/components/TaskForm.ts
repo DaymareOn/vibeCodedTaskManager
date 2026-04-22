@@ -1,6 +1,7 @@
 import type { Task, Duration, TaskStatus, TaskValue } from '../types/Task';
 import { DOM } from '../utils/dom';
 import { t } from '../utils/i18n';
+import { useTaskStore } from '../store/taskStore';
 
 type TaskFormData = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
 
@@ -245,6 +246,27 @@ export const TaskForm = (
   titleInput.placeholder = t('form.titlePlaceholder');
   titleInput.required = true;
   if (existingTask) titleInput.value = existingTask.title;
+
+  // Assignee input with datalist autocomplete
+  const assigneeInput = DOM.create('input', 'form-input') as HTMLInputElement;
+  assigneeInput.type = 'text';
+  assigneeInput.placeholder = t('form.assignee');
+  assigneeInput.setAttribute('list', 'assignee-suggestions');
+  if (existingTask?.assignee) assigneeInput.value = existingTask.assignee;
+
+  const assigneeDatalist = document.createElement('datalist');
+  assigneeDatalist.id = 'assignee-suggestions';
+  // Populate with unique non-empty assignees from the store
+  const existingAssignees = new Set<string>(
+    useTaskStore.getState().tasks
+      .map((task) => task.assignee)
+      .filter((a): a is string => typeof a === 'string' && a.trim() !== ''),
+  );
+  existingAssignees.forEach((name) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    assigneeDatalist.appendChild(opt);
+  });
 
   const descriptionInput = DOM.create('textarea', 'form-input') as HTMLTextAreaElement;
   descriptionInput.placeholder = t('form.descriptionPlaceholder');
@@ -511,6 +533,7 @@ export const TaskForm = (
       parentId: existingTask?.parentId,
       startDate: startDateInput.value || undefined,
       completedAt: existingTask?.completedAt,
+      assignee: assigneeInput.value.trim() || undefined,
     };
 
     onSubmit(taskData);
@@ -546,6 +569,7 @@ export const TaskForm = (
 
     // Text & textarea inputs: debounced on input
     titleInput.addEventListener('input', scheduleAutoSave);
+    assigneeInput.addEventListener('input', scheduleAutoSave);
     descriptionInput.addEventListener('input', scheduleAutoSave);
     tagsInput.addEventListener('input', scheduleAutoSave);
 
@@ -574,7 +598,7 @@ export const TaskForm = (
   DOM.append(
     form,
     createdAtRow,
-    titleInput, descriptionInput, dueDateLabel, dueDateInput, tagsInput,
+    titleInput, assigneeInput, assigneeDatalist, descriptionInput, dueDateLabel, dueDateInput, tagsInput,
     statusLabelEl, statusButtonsRow,
     startDateLabel, startDateInput,
     scoreSection,

@@ -22,7 +22,8 @@
     "targetDelivery": "2026-04-01",
     "remainingEstimate": {
       "iso": "P2D"
-    }
+    },
+    "assignee": "Alice Martin"
   },
   {
     "id": "00000000-0000-0000-0000-000000000002",
@@ -72,7 +73,8 @@
     "remainingEstimate": {
       "iso": "PT2H"
     },
-    "parentId": "00000000-0000-0000-0000-000000000001"
+    "parentId": "00000000-0000-0000-0000-000000000001",
+    "assignee": "Alice Martin"
   },
   {
     "id": "00000000-0000-0000-0000-000000000004",
@@ -223,7 +225,8 @@
     "targetDelivery": "2026-06-01",
     "remainingEstimate": {
       "iso": "P3D"
-    }
+    },
+    "assignee": "Bob Chen"
   },
   {
     "id": "00000000-0000-0000-0000-000000000010",
@@ -318,7 +321,8 @@
     "targetDelivery": "2027-01-01",
     "remainingEstimate": {
       "iso": "P2D"
-    }
+    },
+    "assignee": "Bob Chen"
   },
   {
     "id": "00000000-0000-0000-0000-000000000014",

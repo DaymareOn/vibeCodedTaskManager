@@ -71,6 +71,7 @@ export const fr_FR: Record<string, string> = {
   'form.startDate': 'Date de début (optionnelle)',
   'form.addTask': 'Ajouter la tâche',
   'form.addSubTask': 'Ajouter la sous-tâche',
+  'form.assignee': 'Responsable (optionnel)',
   'form.statusTodo': '⬜ À faire',
   'form.statusInProgress': '🔄 En cours',
   'form.statusDone': '✅ Terminé',
@@ -92,6 +93,13 @@ export const fr_FR: Record<string, string> = {
   'concepts.title': '💡 Concepts & Glossaire',
   'concepts.closeHint': 'Appuyez sur Échap pour fermer.',
   'concepts.close': 'Fermer',
+
+  // Data model overlay
+  'dataModel.title': '📐 Diagramme de classes du modèle de données',
+  'dataModel.closeHint': 'Appuyez sur Échap pour fermer.',
+  'dataModel.close': 'Fermer',
+  'tools.dataModelKey': '📐 Diagramme du modèle (F3)',
+  'tools.openDataModel': '📐 Ouvrir le diagramme du modèle',
 
   // Input device labels
   'device.keyboardMouse': 'Clavier & Souris',

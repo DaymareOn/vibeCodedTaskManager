@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "task-schema-v0.1.1",
+  "$id": "task-schema-v0.1.2",
   "$comment": "The $id version (e.g. 'task-schema-v0.1.0') is the source of truth for DATA_VERSION in migrations.ts. It is bumped automatically (patch) by the pre-commit hook (.githooks/pre-commit) on every commit that touches this file. Add a matching migration in migrations.ts for any breaking schema change.",
   "title": "Task",
   "description": "A single work item managed by the Vibe Coded Task Manager.",
@@ -79,6 +79,10 @@
       "type": "string",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}",
       "description": "ISO 8601 datetime set when status transitions to 'done' or 'cancelled'."
+    },
+    "assignee": {
+      "type": "string",
+      "description": "Optional person assigned to this task."
     }
   },
   "definitions": {

@@ -19,6 +19,7 @@ export const EditTaskColumn = (): EditTaskColumnApi => {
 
   let collapsed = true;
   let currentTaskId: string | null = null;
+  let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 
   // ---- Collapse toggle ----
   const toggleBtn = DOM.create('button', 'edit-column-toggle-btn', '◀');
@@ -118,6 +119,33 @@ export const EditTaskColumn = (): EditTaskColumnApi => {
     });
 
     DOM.append(actionsRow, subTaskBtn, deleteBtn);
+
+    // 'd' key shortcut to delete the currently open task
+    if (keydownHandler) {
+      document.removeEventListener('keydown', keydownHandler);
+    }
+    keydownHandler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      const isTextFocused = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+      if (!isTextFocused && e.key === 'd' && currentTaskId !== null) {
+        if (confirm(t('edit.deleteConfirm', { title: task.title }))) {
+          useTaskStore.getState().deleteTask(task.id);
+          currentTaskId = null;
+          collapsed = true;
+          col.classList.add('collapsed');
+          toggleBtn.textContent = '◀';
+          toggleBtn.title = t('edit.expand');
+          DOM.clear(contentArea);
+          DOM.append(contentArea, placeholder);
+          if (keydownHandler) {
+            document.removeEventListener('keydown', keydownHandler);
+            keydownHandler = null;
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', keydownHandler);
+
     DOM.append(contentArea, editForm.element, actionsRow);
   };
 
