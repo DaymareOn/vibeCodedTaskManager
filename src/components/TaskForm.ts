@@ -268,6 +268,24 @@ export const TaskForm = (
     assigneeDatalist.appendChild(opt);
   });
 
+  // Depends-on selector
+  const dependsOnLabel = DOM.create('label', 'form-label', t('form.dependsOn'));
+  const dependsOnSelect = DOM.create('select', 'form-input') as HTMLSelectElement;
+  const noneOpt = document.createElement('option');
+  noneOpt.value = '';
+  noneOpt.textContent = t('form.dependsOnNone');
+  dependsOnSelect.appendChild(noneOpt);
+  // Populate with all tasks except the current one
+  useTaskStore.getState().tasks
+    .filter((task) => task.id !== existingTask?.id)
+    .forEach((task) => {
+      const opt = document.createElement('option');
+      opt.value = task.id;
+      opt.textContent = task.title;
+      if (existingTask?.dependsOn === task.id) opt.selected = true;
+      dependsOnSelect.appendChild(opt);
+    });
+
   const descriptionInput = DOM.create('textarea', 'form-input') as HTMLTextAreaElement;
   descriptionInput.placeholder = t('form.descriptionPlaceholder');
   descriptionInput.rows = 3;
@@ -534,6 +552,7 @@ export const TaskForm = (
       startDate: startDateInput.value || undefined,
       completedAt: existingTask?.completedAt,
       assignee: assigneeInput.value.trim() || undefined,
+      dependsOn: dependsOnSelect.value || undefined,
     };
 
     onSubmit(taskData);
@@ -593,6 +612,9 @@ export const TaskForm = (
     deliveryToggle.element.querySelectorAll<HTMLElement>('.toggle-btn').forEach((btn) => {
       btn.addEventListener('click', scheduleAutoSave);
     });
+
+    // Depends-on select: save on change
+    dependsOnSelect.addEventListener('change', scheduleAutoSave);
   }
 
   DOM.append(
@@ -601,6 +623,7 @@ export const TaskForm = (
     titleInput, assigneeInput, assigneeDatalist, descriptionInput, dueDateLabel, dueDateInput, tagsInput,
     statusLabelEl, statusButtonsRow,
     startDateLabel, startDateInput,
+    dependsOnLabel, dependsOnSelect,
     scoreSection,
     submitBtn,
   );

@@ -14,7 +14,7 @@ import { DOM } from './utils/dom';
 import { showModal } from './utils/modal';
 import { t } from './utils/i18n';
 import type { Theme } from './store/taskStore';
-import { computePriorityScore } from './utils/priority';
+import { computeBoostedScores } from './utils/priority';
 
 // Apply theme class to <html>
 function applyTheme(theme: Theme): void {
@@ -68,9 +68,12 @@ document.addEventListener('keydown', (e) => {
     const currentId = editTaskColumn.getCurrentTaskId();
     if (currentId) {
       const tasks = useTaskStore.getState().getFilteredTasks();
-      // Sort by priority score descending (highest priority first)
+      const allTasks = useTaskStore.getState().tasks;
+      const { mainCurrency, exchangeRates } = useTaskStore.getState();
+      const boostedScores = computeBoostedScores(allTasks, mainCurrency, exchangeRates);
+      // Sort by boosted priority score descending (highest priority first)
       const scored = tasks
-        .map((task: import('./types/Task').Task) => ({ task, score: computePriorityScore(task) }))
+        .map((task: import('./types/Task').Task) => ({ task, score: boostedScores.get(task.id) ?? 0 }))
         .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
 
       const currentIdx = scored.findIndex((s: { task: import('./types/Task').Task }) => s.task.id === currentId);

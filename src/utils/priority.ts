@@ -205,6 +205,8 @@ export function computeBoostedScores(
   return scores;
 }
 
+/**
+ * Compute the priority score for a task, with the monetary value converted to the main currency.
  *
  * This is identical to `computePriorityScore` but uses `computeTaskValueConverted` so that the
  * result is expressed in the user's main currency rather than the task's native currency.

@@ -3,7 +3,7 @@ import { DOM } from '../utils/dom';
 import { showModal } from '../utils/modal';
 import type { Task } from '../types/Task';
 import {
-  computePriorityScoreConverted,
+  computeBoostedScores,
   computeTaskValue,
   parseDuration,
   formatMoney,
@@ -116,7 +116,8 @@ export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
   function getSortedRootTasks(): Task[] {
     const store = useTaskStore.getState();
     const { filter, mainCurrency, exchangeRates } = store;
-    const tasks = getAllTasksForDisplay().filter((t) => {
+    const allTasks = getAllTasksForDisplay();
+    const tasks = allTasks.filter((t) => {
       if (t.parentId) return false;
       if (filter.hiddenStatuses?.includes(t.status)) return false;
       if (
@@ -128,11 +129,11 @@ export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
       }
       return true;
     });
-    // Sort by priority score descending (highest score first), using main currency for comparison
+    // Sort by boosted priority score descending (highest score first)
     const now = Date.now();
+    const boostedScores = computeBoostedScores(allTasks, mainCurrency, exchangeRates, 1.0, now);
     return [...tasks].sort((a, b) =>
-      computePriorityScoreConverted(b, mainCurrency, exchangeRates, 1.0, now) -
-      computePriorityScoreConverted(a, mainCurrency, exchangeRates, 1.0, now),
+      (boostedScores.get(b.id) ?? 0) - (boostedScores.get(a.id) ?? 0),
     );
   }
 
@@ -312,8 +313,10 @@ export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
       task.taskValue.type === 'direct'
         ? task.taskValue.amount.currency
         : task.taskValue.unitCost.currency;
-    // Priority score in main currency (no currency sign in tooltip)
-    const priorityScore = computePriorityScoreConverted(task, mainCurrency, exchangeRates, 1.0, now);
+    // Priority score in main currency, with dependency boost applied
+    const allDisplayTasks = getAllTasksForDisplay();
+    const boostedScores = computeBoostedScores(allDisplayTasks, mainCurrency, exchangeRates, 1.0, now);
+    const priorityScore = boostedScores.get(task.id) ?? 0;
     // Raw value in the task's own currency
     const rawValue = computeTaskValue(task.taskValue);
     const startStr = new Date(getTaskStartMs(task)).toLocaleDateString();
@@ -350,7 +353,6 @@ export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
     DOM.append(hoverLayer, tooltip);
 
     // ---- Subtasks below parent ----
-    const allDisplayTasks = getAllTasksForDisplay();
     const subTasks = allDisplayTasks.filter(
       (s) => s.parentId === task.id && !filter.hiddenStatuses?.includes(s.status),
     );
