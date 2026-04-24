@@ -37,7 +37,7 @@ export const DEFAULT_BINDINGS: Record<string, string> = {
   'key:ArrowDown':      'Navigate to next-lower-priority task (when Edit column is open, no text field focused)',
   'key:d':              'Delete focused task (when Edit column is open, no text field focused)',
   'key:c':              'Create new task on Timeline, or sub-task when hovering a task bar',
-  'key:Ctrl+Wheel':     'Horizontal zoom (keeps the time under the cursor fixed)',
+  'key:Ctrl+Wheel':     'Pan timeline horizontally (scroll left/right)',
   'key:Shift+Wheel':    'Vertical zoom (adjusts task bar height)',
 };
 
