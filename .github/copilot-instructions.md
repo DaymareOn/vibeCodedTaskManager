@@ -1,6 +1,6 @@
-# GitHub Copilot Instructions for athleteManager
+# GitHub Copilot Instructions for TaskManager
 
-You are assisting with the development of the athleteManager project. Before generating any code, implementing features, or suggesting modifications, you MUST strictly adhere to the following requirements.
+You are assisting with the development of the TaskManager project. Before generating any code, implementing features, or suggesting modifications, you MUST strictly adhere to the following requirements.
 
 ## Development Best Practices
 
