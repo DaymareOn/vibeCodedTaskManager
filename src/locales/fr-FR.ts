@@ -13,6 +13,8 @@ export const fr_FR: Record<string, string> = {
   'tools.overlays': '⌨ Raccourcis',
   'tools.locale': '🌐 Langue',
   'tools.taskHeight': '↕ Hauteur des tâches',
+  'tools.autozoom': '🔎 Zoom auto',
+  'tools.autozoomTitle': 'Ajuster toutes les tâches à la vue de la chronologie (bascule)',
   'tools.currency.label': '🪙 Devise',
   'tools.helpKey': '🆘 Touche d\'aide (F1)',
   'tools.conceptsKey': '💡 Touche concepts (F2)',

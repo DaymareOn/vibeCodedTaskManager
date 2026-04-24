@@ -111,7 +111,19 @@ export const ToolsColumn = (): HTMLElement => {
   }, { passive: false });
   const taskHeightRow = DOM.create('div', 'tools-row');
   DOM.append(taskHeightRow, taskHeightLabel, taskHeightZone);
-  DOM.append(displaySection, displaySectionHeader, taskHeightRow);
+
+  // Autozoom toggle
+  const autozoomRow = DOM.create('div', 'tools-row');
+  const autozoomLabel = DOM.create('span', 'tools-label', t('tools.autozoom'));
+  const autozoomBtn = DOM.create('button', 'btn btn-secondary tools-autozoom-btn', t('tools.autozoom'));
+  autozoomBtn.title = t('tools.autozoomTitle');
+  autozoomBtn.addEventListener('click', () => {
+    const state = useTaskStore.getState();
+    state.setAutozoom(!state.autozoom);
+  });
+  DOM.append(autozoomRow, autozoomLabel, autozoomBtn);
+
+  DOM.append(displaySection, displaySectionHeader, taskHeightRow, autozoomRow);
 
   // ---- Currency section ----
   const currencySectionHeader = DOM.create('div', 'tools-section-header', t('tools.currency'));
@@ -304,6 +316,9 @@ export const ToolsColumn = (): HTMLElement => {
     // Wheel zone value displays
     taskHeightVal.textContent = `${state.taskHeight}px`;
 
+    // Autozoom button active state
+    autozoomBtn.classList.toggle('active', state.autozoom);
+
     // Currency selector
     currencySelect.value = state.mainCurrency;
   };
@@ -320,6 +335,9 @@ export const ToolsColumn = (): HTMLElement => {
     overlaysSectionHeader.textContent = t('tools.overlays');
     localeSectionHeader.textContent  = t('tools.locale');
     taskHeightLabel.textContent      = t('tools.taskHeight');
+    autozoomLabel.textContent        = t('tools.autozoom');
+    autozoomBtn.textContent          = t('tools.autozoom');
+    autozoomBtn.title                = t('tools.autozoomTitle');
     currencyLabel.textContent        = t('tools.currency.label');
     helpKeyLabel.textContent         = t('tools.helpKey');
     conceptsKeyLabel.textContent     = t('tools.conceptsKey');

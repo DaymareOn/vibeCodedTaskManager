@@ -13,6 +13,8 @@ export const en_US: Record<string, string> = {
   'tools.overlays': '⌨ Overlays',
   'tools.locale': '🌐 Language',
   'tools.taskHeight': '↕ Task height',
+  'tools.autozoom': '🔎 Autozoom',
+  'tools.autozoomTitle': 'Fit all tasks in the timeline view (toggle)',
   'tools.currency.label': '🪙 Currency',
   'tools.helpKey': '🆘 Help key (F1)',
   'tools.conceptsKey': '💡 Concepts key (F2)',

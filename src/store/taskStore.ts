@@ -8,6 +8,14 @@ const EXCHANGE_RATE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export type Theme = 'dark-pro' | 'light-pro' | 'pastel';
 
+/** Snapshot of zoom / pan state saved before autozoom is activated. */
+export interface ZoomSnapshot {
+  horizontalZoom: number;
+  verticalZoom: number;
+  timelineOriginMs: number;
+  verticalOffset: number;
+}
+
 export interface TaskStore {
   tasks: Task[];
   filter: TaskFilter;
@@ -19,6 +27,11 @@ export interface TaskStore {
   theme: Theme;
   timelineOriginMs: number;
   verticalOffset: number;
+
+  /** Whether the Autozoom mode is active. */
+  autozoom: boolean;
+  /** Zoom/pan snapshot saved when autozoom was activated; null when autozoom is off. */
+  savedZoomState: ZoomSnapshot | null;
 
   // --- Currency settings ---
   /** ISO 4217 code for the user's main display currency (e.g. "EUR") */
@@ -48,6 +61,21 @@ export interface TaskStore {
   setTheme: (t: Theme) => void;
   setTimelineOriginMs: (ms: number) => void;
   setVerticalOffset: (px: number) => void;
+  /**
+   * Toggle Autozoom on or off.
+   * When enabled the current zoom/pan state is saved; when disabled it is restored.
+   */
+  setAutozoom: (enabled: boolean) => void;
+  /**
+   * Apply all four zoom/pan values atomically (used by the Timeline to avoid
+   * multiple subscriber notifications while autozoom is being computed).
+   */
+  applyAutozoomValues: (
+    horizontalZoom: number,
+    verticalZoom: number,
+    timelineOriginMs: number,
+    verticalOffset: number,
+  ) => void;
 
   // Currency actions
   setMainCurrency: (currency: string) => void;
@@ -70,6 +98,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   theme: 'dark-pro',
   timelineOriginMs: Date.now() - 90 * MS_PER_DAY,
   verticalOffset: 0,
+  autozoom: false,
+  savedZoomState: null,
 
   // Currency defaults
   mainCurrency: 'EUR',
@@ -165,6 +195,39 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   setTheme: (t) => set({ theme: t }),
   setTimelineOriginMs: (ms) => set({ timelineOriginMs: ms }),
   setVerticalOffset: (px) => set({ verticalOffset: px }),
+
+  setAutozoom: (enabled) => {
+    const state = get();
+    if (enabled && !state.autozoom) {
+      set({
+        autozoom: true,
+        savedZoomState: {
+          horizontalZoom: state.horizontalZoom,
+          verticalZoom: state.verticalZoom,
+          timelineOriginMs: state.timelineOriginMs,
+          verticalOffset: state.verticalOffset,
+        },
+      });
+    } else if (!enabled && state.autozoom) {
+      const saved = state.savedZoomState;
+      if (saved) {
+        set({
+          autozoom: false,
+          savedZoomState: null,
+          horizontalZoom: saved.horizontalZoom,
+          verticalZoom: saved.verticalZoom,
+          timelineOriginMs: saved.timelineOriginMs,
+          verticalOffset: saved.verticalOffset,
+        });
+      } else {
+        set({ autozoom: false, savedZoomState: null });
+      }
+    }
+  },
+
+  applyAutozoomValues: (horizontalZoom, verticalZoom, timelineOriginMs, verticalOffset) => {
+    set({ horizontalZoom, verticalZoom, timelineOriginMs, verticalOffset });
+  },
 
   // Currency actions
   setMainCurrency: (currency: string) => {
