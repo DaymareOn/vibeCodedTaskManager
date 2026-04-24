@@ -2047,3 +2047,47 @@ select.form-input    { cursor: pointer; }
 .task-form input[list] {
   width: 100%;
 }
+
+/* Depends-on autocomplete widget */
+.depends-on-autocomplete {
+  position: relative;
+  width: 100%;
+}
+
+.depends-on-autocomplete .depends-on-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--primary);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  max-height: 200px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  box-shadow: var(--shadow);
+}
+
+.depends-on-autocomplete .depends-on-dropdown.hidden {
+  display: none;
+}
+
+.depends-on-autocomplete .depends-on-dropdown li {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.depends-on-autocomplete .depends-on-dropdown li:hover,
+.depends-on-autocomplete .depends-on-dropdown li.active {
+  background: var(--primary);
+  color: #fff;
+}

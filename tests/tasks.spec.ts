@@ -2365,21 +2365,21 @@ test.describe('Task dependency (dependsOn) feature', () => {
     await page.waitForSelector('.tools-column', { timeout: 10_000 });
   });
 
-  test('dependsOn select is visible in the add-task form without JS errors', async ({ page }) => {
+  test('dependsOn autocomplete is visible in the add-task form without JS errors', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (err) => errors.push(err.message));
 
     await page.locator('.timeline-body').click({ position: { x: 100, y: 100 } });
     await expect(page.locator('.modal-overlay .task-form')).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator('.modal-overlay select[data-field="dependsOn"]')).toBeVisible();
+    await expect(page.locator('.modal-overlay input[data-field="dependsOn"]')).toBeVisible();
 
-    const firstOptionText = await page.locator('.modal-overlay select[data-field="dependsOn"] option').first().textContent();
-    expect(firstOptionText).toContain('None');
+    const placeholder = await page.locator('.modal-overlay input[data-field="dependsOn"]').getAttribute('placeholder');
+    expect(placeholder).toContain('Search');
 
     expect(errors, `JS errors while opening add-task form:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
-  test('dependsOn select in edit form lists other tasks (not itself)', async ({ page }) => {
+  test('dependsOn autocomplete in edit form lists other tasks (not itself)', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (err) => errors.push(err.message));
 
@@ -2395,11 +2395,14 @@ test.describe('Task dependency (dependsOn) feature', () => {
     await page.locator('.task-rect', { has: page.locator('.task-title', { hasText: 'Blocker Task Dep' }) }).first().click();
     await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
 
-    // The dependsOn select should exist and have only "None" (only one task, itself excluded)
-    const depSelect = page.locator('.edit-task-column select[data-field="dependsOn"]');
-    await expect(depSelect).toBeVisible({ timeout: 3_000 });
-    const optionCount = await depSelect.locator('option').count();
-    expect(optionCount).toBe(1); // only the "None" option
+    // The dependsOn input should exist; clicking it should open the dropdown (empty, since the only task is itself)
+    const depInput = page.locator('.edit-task-column input[data-field="dependsOn"]');
+    await expect(depInput).toBeVisible({ timeout: 3_000 });
+    await depInput.click();
+
+    // Dropdown should be hidden (no other tasks to suggest; itself is excluded)
+    const dropdown = page.locator('.edit-task-column .depends-on-dropdown');
+    await expect(dropdown).toHaveClass(/hidden/, { timeout: 2_000 });
 
     expect(errors, `JS errors in dependsOn edit form test:\n${errors.join('\n')}`).toHaveLength(0);
   });
@@ -2428,10 +2431,12 @@ test.describe('Task dependency (dependsOn) feature', () => {
     await page.locator('.task-rect', { has: page.locator('.task-title', { hasText: 'Dependent A Persist' }) }).first().click();
     await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
 
-    // Set dependency: A depends on B
-    const depSelect = page.locator('.edit-task-column select[data-field="dependsOn"]');
-    await expect(depSelect).toBeVisible({ timeout: 3_000 });
-    await depSelect.selectOption({ label: 'Blocker B Persist' });
+    // Set dependency: A depends on B via autocomplete
+    const depInput = page.locator('.edit-task-column input[data-field="dependsOn"]');
+    await expect(depInput).toBeVisible({ timeout: 3_000 });
+    await depInput.fill('Blocker B Persist');
+    // Click the matching dropdown item
+    await page.locator('.edit-task-column .depends-on-dropdown li', { hasText: 'Blocker B Persist' }).click();
 
     // Wait for auto-save debounce (400 ms) + buffer
     await page.waitForTimeout(800);
@@ -2442,12 +2447,10 @@ test.describe('Task dependency (dependsOn) feature', () => {
     await page.locator('.task-rect', { has: page.locator('.task-title', { hasText: 'Dependent A Persist' }) }).first().click();
     await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
 
-    const editDepSelect = page.locator('.edit-task-column select[data-field="dependsOn"]');
-    await expect(editDepSelect).toBeVisible({ timeout: 3_000 });
-    const selectedLabel = await editDepSelect.evaluate((el: HTMLSelectElement) =>
-      el.options[el.selectedIndex]?.text ?? '',
-    );
-    expect(selectedLabel).toContain('Blocker B Persist');
+    const editDepInput = page.locator('.edit-task-column input[data-field="dependsOn"]');
+    await expect(editDepInput).toBeVisible({ timeout: 3_000 });
+    const inputValue = await editDepInput.inputValue();
+    expect(inputValue).toContain('Blocker B Persist');
 
     expect(errors, `JS errors during dependency save/reload:\n${errors.join('\n')}`).toHaveLength(0);
   });
@@ -2484,10 +2487,11 @@ test.describe('Task dependency (dependsOn) feature', () => {
     await page.locator('.task-rect', { has: page.locator('.task-title', { hasText: 'Boost Test Dependent A' }) }).first().click();
     await expect(page.locator('.edit-task-column')).not.toHaveClass(/collapsed/, { timeout: 5_000 });
 
-    // Set dependency: A depends on B
-    const depSelect = page.locator('.edit-task-column select[data-field="dependsOn"]');
-    await expect(depSelect).toBeVisible({ timeout: 3_000 });
-    await depSelect.selectOption({ label: 'Boost Test Blocker B' });
+    // Set dependency: A depends on B via autocomplete
+    const depInput = page.locator('.edit-task-column input[data-field="dependsOn"]');
+    await expect(depInput).toBeVisible({ timeout: 3_000 });
+    await depInput.fill('Boost Test Blocker B');
+    await page.locator('.edit-task-column .depends-on-dropdown li', { hasText: 'Boost Test Blocker B' }).click();
 
     // Wait for auto-save + re-render
     await page.waitForTimeout(1000);
