@@ -120,6 +120,7 @@ export const TaskCard = (task: Task, depth = 0): HTMLElement => {
 
   const addSubBtn = DOM.create('button', 'btn btn-secondary', '+ Sub-task');
   addSubBtn.addEventListener('click', () => {
+    // eslint-disable-next-line prefer-const
     let closeSub: () => void;
     const subForm = TaskForm(
       (subTaskData) => {

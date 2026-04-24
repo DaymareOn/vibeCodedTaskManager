@@ -391,6 +391,7 @@ export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
     }
 
     const container = DOM.create('div', 'task-action-modal');
+    // eslint-disable-next-line prefer-const
     let closeModal: () => void;
 
     const editForm = TaskForm(
@@ -405,6 +406,7 @@ export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
     const subTaskBtn = DOM.create('button', 'btn btn-secondary', '+ Add Sub-task');
     subTaskBtn.addEventListener('click', () => {
       closeModal();
+      // eslint-disable-next-line prefer-const
       let closeSub: () => void;
       const subForm = TaskForm(
         (subData) => {
@@ -440,6 +442,7 @@ export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
     const clickTimeMs = xToTime(clickX, store.timelineOriginMs, store.horizontalZoom);
     const clickDate = new Date(clickTimeMs).toISOString().split('T')[0];
 
+    // eslint-disable-next-line prefer-const
     let closeAdd: () => void;
     const addForm = TaskForm(
       (taskData) => {

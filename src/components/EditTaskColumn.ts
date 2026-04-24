@@ -90,6 +90,7 @@ export const EditTaskColumn = (): EditTaskColumnApi => {
       toggleBtn.textContent = '◀';
       toggleBtn.title = t('edit.expand');
 
+      // eslint-disable-next-line prefer-const
       let closeSub: () => void;
       const subForm = TaskForm(
         (subData) => {

@@ -104,6 +104,7 @@ document.addEventListener('keydown', (e) => {
     const hoveredTask = hoveredTaskId ? tasks.find((task) => task.id === hoveredTaskId) : null;
 
     if (hoveredTask) {
+      // eslint-disable-next-line prefer-const
       let closeSub: () => void;
       const subForm = TaskForm(
         (subData) => {
@@ -115,6 +116,7 @@ document.addEventListener('keydown', (e) => {
       );
       closeSub = showModal(subForm.element);
     } else {
+      // eslint-disable-next-line prefer-const
       let closeAdd: () => void;
       const addForm = TaskForm(
         (taskData) => {
