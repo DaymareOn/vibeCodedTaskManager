@@ -21,6 +21,7 @@ const BASE_PX_PER_DAY = 3; // pixels per day at 100% horizontal zoom
 const TASK_GAP = 6; // gap between task rows
 const MIN_RECT_WIDTH = 4; // minimum task rectangle width in px
 const SCROLL_SPEED_MULTIPLIER = 0.6; // fraction of wheel delta applied to vertical scroll
+const PAN_LIMIT_MS = 100 * MS_PER_YEAR; // ±100 years from today
 const LAYOUT_SETTLE_DELAY = 50; // ms to wait for DOM layout before initial timeline render
 const TIMELINE_PADDING_DAYS = 30; // days of padding before earliest task when auto-centering
 const TIMELINE_DEFAULT_PAST_DAYS = 60; // days before today used as default origin when no tasks exist
@@ -454,7 +455,7 @@ export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
 
   // -------- Wheel events --------
   // Scroll mapping:
-  //   Ctrl + deltaY          → horizontal zoom (keep cursor-time fixed)
+  //   Ctrl + deltaY          → horizontal pan (move timeline left/right)
   //   deltaX (touchpad)      → horizontal pan (timeline scroll left/right)
   //   Shift + deltaY         → vertical zoom
   //   plain deltaY           → vertical scroll
@@ -467,22 +468,18 @@ export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
       const store = useTaskStore.getState();
 
       if (e.ctrlKey) {
-        // Ctrl + vertical wheel → horizontal zoom (keep time under cursor fixed)
-        const zoomDelta = e.deltaY > 0 ? -10 : 10;
-        const newZoom = Math.max(10, Math.min(2000, store.horizontalZoom + zoomDelta));
-        const bodyRect = body.getBoundingClientRect();
-        const mouseX = e.clientX - bodyRect.left;
-        const timeAtMouse = xToTime(mouseX, store.timelineOriginMs, store.horizontalZoom);
-        const newOriginMs = timeAtMouse - mouseX / getPxPerMs(newZoom);
-        store.setHorizontalZoom(newZoom);
-        store.setTimelineOriginMs(newOriginMs);
-        return; // don't process deltaX when zooming
+        // Ctrl + vertical wheel → horizontal pan
+        const panMs = e.deltaY / getPxPerMs(store.horizontalZoom);
+        const newOrigin = Math.max(
+          Date.now() - PAN_LIMIT_MS,
+          Math.min(Date.now() + PAN_LIMIT_MS, store.timelineOriginMs + panMs),
+        );
+        store.setTimelineOriginMs(newOrigin);
+        return; // don't process deltaX when panning via Ctrl+Wheel
       }
 
       // Horizontal pan via deltaX (touchpad two-finger horizontal swipe)
       if (e.deltaX !== 0) {
-        const MS_PER_DAY_LOCAL = 86_400_000;
-        const PAN_LIMIT_MS = 100 * 365 * MS_PER_DAY_LOCAL; // ±100 years from today
         const panMs = e.deltaX / getPxPerMs(store.horizontalZoom);
         const newOrigin = Math.max(
           Date.now() - PAN_LIMIT_MS,
