@@ -268,24 +268,145 @@ export const TaskForm = (
     assigneeDatalist.appendChild(opt);
   });
 
-  // Depends-on selector
+  // Depends-on autocomplete
   const dependsOnLabel = DOM.create('label', 'form-label', t('form.dependsOn'));
-  const dependsOnSelect = DOM.create('select', 'form-input') as HTMLSelectElement;
-  dependsOnSelect.dataset.field = 'dependsOn';
-  const noneOpt = document.createElement('option');
-  noneOpt.value = '';
-  noneOpt.textContent = t('form.dependsOnNone');
-  dependsOnSelect.appendChild(noneOpt);
-  // Populate with all tasks except the current one
-  useTaskStore.getState().tasks
-    .filter((task) => task.id !== existingTask?.id)
-    .forEach((task) => {
-      const opt = document.createElement('option');
-      opt.value = task.id;
-      opt.textContent = task.title;
-      if (existingTask?.dependsOn === task.id) opt.selected = true;
-      dependsOnSelect.appendChild(opt);
+  let dependsOnId: string = existingTask?.dependsOn ?? '';
+
+  // Find the title of the currently-selected dependency (if any)
+  const allTasks = useTaskStore.getState().tasks;
+  const dependsOnTask = dependsOnId
+    ? allTasks.find((task) => task.id === dependsOnId)
+    : undefined;
+
+  // All tasks available as dependency targets (exclude the task being edited)
+  const availableDependencyTasks = allTasks.filter((task) => task.id !== existingTask?.id);
+
+  // Debounce delay for closing the dropdown after blur (ms)
+  const DEPENDS_ON_BLUR_DELAY_MS = 150;
+
+  const dependsOnWrapper = DOM.create('div', 'depends-on-autocomplete');
+  const dependsOnInput = DOM.create('input', 'form-input') as HTMLInputElement;
+  dependsOnInput.type = 'text';
+  dependsOnInput.placeholder = t('form.dependsOnPlaceholder');
+  dependsOnInput.dataset.field = 'dependsOn';
+  dependsOnInput.autocomplete = 'off';
+  dependsOnInput.setAttribute('role', 'combobox');
+  dependsOnInput.setAttribute('aria-expanded', 'false');
+  dependsOnInput.setAttribute('aria-haspopup', 'listbox');
+  dependsOnInput.setAttribute('aria-autocomplete', 'list');
+  dependsOnInput.value = dependsOnTask?.title ?? '';
+
+  const dependsOnDropdown = DOM.create('ul', 'depends-on-dropdown hidden') as HTMLUListElement;
+  dependsOnDropdown.setAttribute('role', 'listbox');
+  let dependsOnActiveIndex = -1;
+
+  const setDropdownVisible = (visible: boolean): void => {
+    dependsOnDropdown.classList.toggle('hidden', !visible);
+    dependsOnInput.setAttribute('aria-expanded', String(visible));
+    if (!visible) dependsOnInput.removeAttribute('aria-activedescendant');
+  };
+
+  const clearDependency = (): void => {
+    dependsOnId = '';
+    dependsOnInput.value = '';
+  };
+
+  const renderDependsOnDropdown = (query: string): void => {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? availableDependencyTasks.filter((task) => task.title.toLowerCase().includes(q))
+      : availableDependencyTasks;
+
+    dependsOnDropdown.innerHTML = '';
+    dependsOnActiveIndex = -1;
+
+    if (filtered.length === 0) {
+      setDropdownVisible(false);
+      return;
+    }
+
+    filtered.forEach((task, index) => {
+      const li = document.createElement('li');
+      li.textContent = task.title;
+      li.dataset.id = task.id;
+      li.setAttribute('role', 'option');
+      li.id = `depends-on-option-${index}`;
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault(); // prevent blur firing before click registers
+        selectDependsOn(task.id, task.title);
+      });
+      dependsOnDropdown.appendChild(li);
     });
+    setDropdownVisible(true);
+  };
+
+  const selectDependsOn = (id: string, title: string): void => {
+    dependsOnId = id;
+    dependsOnInput.value = title;
+    setDropdownVisible(false);
+    dependsOnActiveIndex = -1;
+    dependsOnInput.dispatchEvent(new Event('change'));
+  };
+
+  dependsOnInput.addEventListener('input', () => {
+    const val = dependsOnInput.value;
+    if (!val) {
+      dependsOnId = '';
+      setDropdownVisible(false);
+    } else {
+      // If the typed text no longer matches the currently selected task, clear the ID
+      const current = availableDependencyTasks.find((task) => task.id === dependsOnId);
+      if (!current || current.title !== val) {
+        dependsOnId = '';
+      }
+      renderDependsOnDropdown(val);
+    }
+  });
+
+  dependsOnInput.addEventListener('focus', () => {
+    renderDependsOnDropdown(dependsOnInput.value);
+  });
+
+  dependsOnInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      setDropdownVisible(false);
+      // Resolve the selected task by exact title match, or clear the field
+      const match = availableDependencyTasks.find((task) => task.title === dependsOnInput.value);
+      if (match) {
+        dependsOnId = match.id;
+      } else if (!dependsOnId) {
+        clearDependency();
+      }
+    }, DEPENDS_ON_BLUR_DELAY_MS);
+  });
+
+  dependsOnInput.addEventListener('keydown', (e: KeyboardEvent) => {
+    const items = dependsOnDropdown.querySelectorAll<HTMLLIElement>('li');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      dependsOnActiveIndex = Math.min(dependsOnActiveIndex + 1, items.length - 1);
+      items.forEach((li, i) => {
+        li.classList.toggle('active', i === dependsOnActiveIndex);
+        if (i === dependsOnActiveIndex) dependsOnInput.setAttribute('aria-activedescendant', li.id);
+      });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      dependsOnActiveIndex = Math.max(dependsOnActiveIndex - 1, 0);
+      items.forEach((li, i) => {
+        li.classList.toggle('active', i === dependsOnActiveIndex);
+        if (i === dependsOnActiveIndex) dependsOnInput.setAttribute('aria-activedescendant', li.id);
+      });
+    } else if (e.key === 'Enter' && dependsOnActiveIndex >= 0) {
+      e.preventDefault();
+      const active = items[dependsOnActiveIndex];
+      if (active) selectDependsOn(active.dataset.id ?? '', active.textContent ?? '');
+    } else if (e.key === 'Escape') {
+      setDropdownVisible(false);
+      dependsOnActiveIndex = -1;
+    }
+  });
+
+  DOM.append(dependsOnWrapper, dependsOnInput, dependsOnDropdown);
 
   const descriptionInput = DOM.create('textarea', 'form-input') as HTMLTextAreaElement;
   descriptionInput.placeholder = t('form.descriptionPlaceholder');
@@ -553,7 +674,7 @@ export const TaskForm = (
       startDate: startDateInput.value || undefined,
       completedAt: existingTask?.completedAt,
       assignee: assigneeInput.value.trim() || undefined,
-      dependsOn: dependsOnSelect.value || undefined,
+      dependsOn: dependsOnId || undefined,
     };
 
     onSubmit(taskData);
@@ -563,6 +684,7 @@ export const TaskForm = (
       currentStatus = 'todo';
       valueType = 'direct';
       deliveryType = 'date';
+      clearDependency();
       valueTypeToggle.setValue('direct');
       deliveryToggle.setValue('date');
       estimateBuilder.setValue('');
@@ -614,8 +736,8 @@ export const TaskForm = (
       btn.addEventListener('click', scheduleAutoSave);
     });
 
-    // Depends-on select: save on change
-    dependsOnSelect.addEventListener('change', scheduleAutoSave);
+    // Depends-on autocomplete: save on change (dispatched by selectDependsOn)
+    dependsOnInput.addEventListener('change', scheduleAutoSave);
   }
 
   DOM.append(
@@ -624,7 +746,7 @@ export const TaskForm = (
     titleInput, assigneeInput, assigneeDatalist, descriptionInput, dueDateLabel, dueDateInput, tagsInput,
     statusLabelEl, statusButtonsRow,
     startDateLabel, startDateInput,
-    dependsOnLabel, dependsOnSelect,
+    dependsOnLabel, dependsOnWrapper,
     scoreSection,
     submitBtn,
   );
