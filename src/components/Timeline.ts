@@ -608,8 +608,11 @@ export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
   useTaskStore.subscribe(() => {
     if (!isApplyingAutozoom && useTaskStore.getState().autozoom) {
       isApplyingAutozoom = true;
-      applyAutozoom();
-      isApplyingAutozoom = false;
+      try {
+        applyAutozoom();
+      } finally {
+        isApplyingAutozoom = false;
+      }
     }
     updateScrubber();
     renderRuler();
@@ -620,8 +623,11 @@ export const Timeline = (onEditTask?: (task: Task) => void): TimelineApi => {
   const resizeObs = new ResizeObserver(() => {
     if (!isApplyingAutozoom && useTaskStore.getState().autozoom) {
       isApplyingAutozoom = true;
-      applyAutozoom();
-      isApplyingAutozoom = false;
+      try {
+        applyAutozoom();
+      } finally {
+        isApplyingAutozoom = false;
+      }
     }
     renderRuler();
     renderCanvas();

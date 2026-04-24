@@ -129,10 +129,10 @@
  *     1. The Autozoom button is visible in the Display section of the Tools panel.
  *     2. Clicking Autozoom activates the "active" CSS class on the button.
  *     3. Clicking Autozoom again removes the "active" class.
- *     4. Autozoom changes horizontal zoom/origin and vertical zoom so tasks fill the view.
- *     5. Turning autozoom off restores the previous zoom/pan state.
- *     6. The autozoom label updates when the locale switches (i18n).
- *     7. No browser console errors are produced during autozoom toggle.
+ *     4. Autozoom changes horizontal zoom/origin and vertical zoom so tasks fill the view,
+ *        and turning it off restores the previous zoom/pan state.
+ *     5. The autozoom label updates when the locale switches (i18n).
+ *     6. No browser console errors are produced during autozoom toggle.
  */
 
 import { test, expect } from '@playwright/test';
@@ -2654,14 +2654,6 @@ test.describe('Autozoom toggle', () => {
   });
 
   test('Autozoom changes horizontal zoom and timeline origin', async ({ page }) => {
-    // Capture the zoom state before autozoom
-    const before = await page.evaluate(() => {
-      // @ts-ignore – zustand store is available on the window via the module
-      const store = (window as unknown as { __taskStore?: { getState: () => Record<string, unknown> } }).__taskStore;
-      if (store) return store.getState();
-      return null;
-    });
-
     await page.locator('.tools-autozoom-btn').click();
     await page.waitForTimeout(200);
 
@@ -2674,8 +2666,6 @@ test.describe('Autozoom toggle', () => {
     await page.locator('.tools-autozoom-btn').click();
     await page.waitForTimeout(200);
     await expect(page.locator('.task-rect')).toHaveCount(AUTOZOOM_TASKS.length, { timeout: 3_000 });
-
-    void before; // suppress unused variable warning
   });
 
   test('Autozoom restores zoom state after being toggled off', async ({ page }) => {
